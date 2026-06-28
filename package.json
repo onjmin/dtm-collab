@@ -5,11 +5,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dev:all": "concurrently -n \"db,api,web\" -c \"yellow,magenta,cyan\" \"docker compose up\" \"pnpm --prefix backend dev\" \"next dev\""
+    "dev:all": "concurrently -n \"db,api,web\" -c \"yellow,magenta,cyan\" \"docker compose up\" \"pnpm --prefix backend dev\" \"pnpm dev\""
   },
   "dependencies": {
     "next": "16.2.9",
