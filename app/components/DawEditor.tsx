@@ -121,7 +121,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
     
     // Local dev
     if (host === "localhost" || host === "127.0.0.1") {
-      return `ws://localhost:3001/ws`;
+      return `ws://localhost:8000/ws`;
     }
     
     // Environment configured URL or default Koyeb endpoint

@@ -70,7 +70,7 @@ function AppContent() {
   const getApiUrl = () => {
     const host = window.location.hostname;
     if (host === "localhost" || host === "127.0.0.1") {
-      return `http://localhost:3001`;
+      return `http://localhost:8000`;
     }
     const configUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     if (configUrl) {
@@ -223,7 +223,7 @@ function AppContent() {
   // Render DAW Editor when inside a room
   if (roomId) {
     return (
-      <main className="flex flex-1 flex-col py-6 px-4 select-none custom-grid min-h-screen">
+      <main className="flex flex-1 flex-col py-6 select-none custom-grid min-h-screen">
         <DawEditor
           roomId={roomId}
           username={username || "プレイヤー"}
