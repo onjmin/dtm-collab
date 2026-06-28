@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "dev:all": "concurrently -n \"db,api,web\" -c \"yellow,magenta,cyan\" \"docker compose up\" \"pnpm --prefix backend dev\" \"pnpm dev\""
