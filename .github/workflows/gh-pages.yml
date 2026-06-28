@@ -55,6 +55,13 @@ jobs:
         run: |
           cd dtm-collab
           pnpm install
+          
+      - name: Build next.js app
+        env:
+          NEXT_PUBLIC_BACKEND_URL: ${{ vars.NEXT_PUBLIC_BACKEND_URL }}
+        run: |
+          cd dtm-collab
+          pnpm run build
 
       - name: Build next.js app
         run: |
