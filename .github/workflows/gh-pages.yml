@@ -27,12 +27,6 @@ jobs:
         with:
           path: dtm-collab
 
-      - name: Checkout dtm (library dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: onjmin/dtm
-          path: dtm
-
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -45,12 +39,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: dtm-collab/pnpm-lock.yaml
 
-      - name: Build local dtm library
-        run: |
-          cd dtm
-          pnpm install
-          pnpm run build
-
       - name: Install dtm-collab dependencies
         run: |
           cd dtm-collab
@@ -59,11 +47,6 @@ jobs:
       - name: Build next.js app
         env:
           NEXT_PUBLIC_BACKEND_URL: ${{ vars.NEXT_PUBLIC_BACKEND_URL }}
-        run: |
-          cd dtm-collab
-          pnpm run build
-
-      - name: Build next.js app
         run: |
           cd dtm-collab
           pnpm run build
