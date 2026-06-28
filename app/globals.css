@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -14,8 +14,9 @@
   --c-text: #fff1e8;
   --c-purple: #7e2553;
   
-  --font-pixel-jp: 'DotGothic16', sans-serif;
+  --font-sans: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-pixel-en: 'Press Start 2P', cursive;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 body {
@@ -23,47 +24,30 @@ body {
   background-image: radial-gradient(circle, #1a1c2c 1.5px, transparent 1.5px);
   background-size: 12px 12px;
   color: var(--c-text);
-  font-family: var(--font-pixel-jp), ui-monospace, monospace;
+  font-family: var(--font-sans);
   font-size: 14px;
-  image-rendering: pixelated;
   overflow-x: hidden;
   position: relative;
   min-height: 100vh;
 }
 
-/* CRT Scanline Effect Overlay */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.15) 0px,
-    rgba(0, 0, 0, 0.15) 1.5px,
-    transparent 1.5px,
-    transparent 3px
-  );
-  pointer-events: none;
-  z-index: 9999;
-}
-
-/* Blinking animations for retro feel */
-@keyframes blink-slow {
+/* Smooth active indicators with step-like retro pulse */
+@keyframes retro-blink {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  50% { opacity: 0.15; }
 }
 
 .pixel-blink {
-  animation: blink-slow 1.2s steps(2) infinite;
+  animation: retro-blink 1.2s steps(2) infinite;
 }
 
-/* Retro Pixel Art Borders & Buttons */
+/* Retro Pixel Art Borders & Panels */
 .pixel-border {
   border: 4px solid #000;
-  image-rendering: pixelated;
   position: relative;
   background-color: var(--c-navy);
   box-shadow: 4px 4px 0px #000;
+  image-rendering: pixelated;
 }
 
 .pixel-border-cyan {
@@ -81,18 +65,24 @@ body::after {
   box-shadow: inset 0 0 0 2px #000, 0 0 0 2px var(--c-yellow), 4px 4px 0 #000;
 }
 
+/* Physially Depressing Pixel Art Buttons */
 .pixel-btn {
-  font-family: var(--font-pixel-jp);
+  font-family: var(--font-sans);
+  font-weight: 700;
   background-color: var(--c-gray);
   border: 3px solid #000;
   box-shadow: 3px 3px 0px #000;
   color: var(--c-text);
-  padding: 6px 12px;
+  padding: 6px 14px;
   cursor: pointer;
   outline: none;
   image-rendering: pixelated;
   transition: transform 0.05s, box-shadow 0.05s;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .pixel-btn:hover {
@@ -132,21 +122,24 @@ body::after {
   color: #000;
 }
 
+/* Pixel Input Styles */
 .pixel-input {
   background-color: #000;
   border: 3px solid #000;
   box-shadow: 0 0 0 2px var(--c-gray);
   color: var(--c-text);
-  font-family: var(--font-pixel-jp);
+  font-family: var(--font-sans);
+  font-weight: 500;
   padding: 6px 10px;
   outline: none;
+  border-radius: 0;
 }
 
 .pixel-input:focus {
   box-shadow: 0 0 0 2px var(--c-cyan);
 }
 
-/* Scrollbar customization in retro theme */
+/* Scrollbar Customization in retro theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -163,16 +156,8 @@ body::after {
   background: var(--c-muted);
 }
 
-/* DAW editor overrides for retro look */
-[data-dtm="macro-clear"],
-[data-dtm="macro-random"],
-[data-dtm="macro-harmonic"],
-[data-dtm="macro-mono"] {
-  display: none !important;
-}
-
-/* Ensure canvas elements from DTM render in crisp pixelated form */
-canvas {
+/* Ensure canvas elements and images from DTM render in crisp pixelated form */
+canvas, img {
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-crisp-edges;
   image-rendering: pixelated;
@@ -188,6 +173,6 @@ canvas {
 .custom-grid {
   background-size: 20px 20px;
   background-image: 
-    linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
 }

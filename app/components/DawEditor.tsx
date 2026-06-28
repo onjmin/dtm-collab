@@ -82,6 +82,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDawReady, setIsDawReady] = useState(false);
   const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [roomName, setRoomName] = useState<string>("");
 
   // Offscreen edit arrows
   const [arrowLeftText, setArrowLeftText] = useState("");
@@ -293,6 +294,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           setMyTrackIndex(trackIdx);
           setIsSpectator(spectator);
           if (msg.creatorId) setCreatorId(msg.creatorId);
+          if (msg.roomName) setRoomName(msg.roomName);
 
           if (msg.yourNotes?.length > 0) {
             pendingOwnNotes.current = msg.yourNotes;
@@ -500,15 +502,19 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   return (
     <div className="flex flex-col flex-1 w-full max-w-4xl mx-auto gap-4 p-2 md:p-4 select-none">
       {/* Top Banner / Status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#1d2b53] border-4 border-black p-3 shadow-[4px_4px_0px_#000] pixel-border-cyan">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#1d2b53] border-4 border-black p-3 shadow-[4px_4px_0px_#000] pixel-border pixel-border-cyan">
         <div className="flex items-center gap-3">
           <span className="text-[#ff77a8] text-lg font-bold">●</span>
           <div>
             <div className="font-bold text-[#ffec27] text-sm md:text-base tracking-wider">
-              部屋: {roomId}
+              ルーム: {roomName || roomId}
             </div>
             <div className="text-xs text-[#83769c] tracking-widest uppercase">
-              {isSpectator ? "観覧モード (満員)" : `あなたのトラック: @${myTrackIndex + 1}`}
+              {isSpectator ? "リスナーモード (満員)" : (
+                <span>
+                  マイトラック: <span className="font-mono text-white">@{myTrackIndex + 1}</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -531,16 +537,16 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       </div>
 
       {/* Network Status bar */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-black text-[#83769c] border-4 border-black px-3 py-1.5 text-2xs md:text-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 bg-black text-[#83769c] border-4 border-black px-3 py-1.5 text-2xs md:text-xs font-mono">
         <div className="flex items-center gap-2">
           <span className={`inline-block w-2.5 h-2.5 rounded-full ${
             relayStatus === "connected" ? "bg-[#00e436] shadow-[0_0_6px_#00e436]" : 
             relayStatus === "connecting" ? "bg-[#ffec27] animate-pulse" : "bg-[#ff004d]"
           }`} />
-          <span>リレーサーバー: {relayStatusMsg}</span>
+          <span>サーバー接続: {relayStatusMsg}</span>
         </div>
         <span className="text-[#5f574f]">|</span>
-        <div>ロール: {isSpectator ? "観客 👁️" : `演奏者 ${TRACK_EMOJIS[myTrackIndex] || '🎵'}`}</div>
+        <div>役割: {isSpectator ? "リスナー 👁️" : `プレイヤー ${TRACK_EMOJIS[myTrackIndex] || '🎵'}`}</div>
       </div>
 
       {/* Error Message Modal/Alert */}
@@ -555,7 +561,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         
         {/* Left Column: Players Panel */}
-        <div className="md:col-span-1 flex flex-col bg-[#1d2b53] border-4 border-black p-3 shadow-[4px_4px_0px_#000] pixel-border-cyan gap-2">
+        <div className="md:col-span-1 flex flex-col bg-[#1d2b53] border-4 border-black p-3 shadow-[4px_4px_0px_#000] pixel-border pixel-border-cyan gap-2">
           <div className="text-[#ff77a8] font-bold text-xs tracking-wider border-b-2 border-[#5f574f] pb-1 select-none">
             ► 参加メンバー ({players.size})
           </div>
@@ -581,12 +587,12 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                       className="font-bold flex items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap"
                       style={{ color: trackColor }}
                     >
-                      {playerEmoji} {p.username.replace(/^Player-/, '')}
+                      {playerEmoji} {p.username.replace(/^プレイヤー-/, '').replace(/^Player-/, '')}
                       {isOwner && <span className="text-[10px]" title="部屋の管理者">👑</span>}
-                      {isMe && <span className="text-[9px] text-[#29adff] bg-[#29adff]/10 px-1 border border-[#29adff]">Me</span>}
+                      {isMe && <span className="text-[9px] text-[#29adff] bg-[#29adff]/10 px-1 border border-[#29adff]">自分</span>}
                     </span>
-                    <span className="text-[10px] text-[#83769c]">
-                      {p.trackIndex >= 0 ? `@${p.trackIndex + 1}` : "観覧"}
+                    <span className="text-[10px] text-[#83769c] font-mono">
+                      {p.trackIndex >= 0 ? `T${p.trackIndex + 1}` : "リスナー"}
                     </span>
                   </div>
 
@@ -599,7 +605,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                         className="text-[9px] px-1.5 py-0.5 border border-[#ff004d] bg-[#ff004d]/20 text-[#ff004d] hover:bg-[#ff004d] hover:text-white transition-colors"
                         title="このユーザーを退室させる"
                       >
-                        ⚡ KICK
+                        ⚡ 退室させる
                       </button>
                     ) : <div />}
 
@@ -632,20 +638,20 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         {/* Right Column: DAW & Chat */}
         <div className="md:col-span-3 flex flex-col gap-4">
           
-          {/* Retro Chat Box */}
-          <div className="bg-[#1d2b53] border-4 border-black shadow-[4px_4px_0px_#000] pixel-border-pink flex flex-col">
+          {/* Chat Box */}
+          <div className="bg-[#1d2b53] border-4 border-black shadow-[4px_4px_0px_#000] pixel-border pixel-border-pink flex flex-col">
             <div 
               onClick={() => {
                 setIsChatCollapsed(!isChatCollapsed);
                 setHasUnread(false);
               }}
-              className="bg-black text-[#ff77a8] px-3 py-2 cursor-pointer flex items-center justify-between font-bold text-xs select-none hover:text-[#ffec27]"
+              className="bg-black text-[#ff77a8] px-3 py-2 cursor-pointer flex items-center justify-between font-bold text-xs select-none hover:text-[#ffec27] transition-colors"
             >
               <div className="flex items-center gap-2">
-                <span>{isChatCollapsed ? "▶" : "▼"} CHAT</span>
+                <span>{isChatCollapsed ? "▶" : "▼"} セッションチャット</span>
                 {hasUnread && (
                   <span className="text-[#ffec27] animate-pulse bg-[#ffec27]/10 px-1.5 border border-[#ffec27]">
-                    UNREAD!
+                    新着あり！
                   </span>
                 )}
               </div>
@@ -664,8 +670,8 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                   {chatMessages.map((msg, idx) => {
                     const trackColor = TRACK_COLORS[msg.trackIndex] || "var(--c-text)";
                     const emoji = TRACK_EMOJIS[msg.trackIndex] || "👻";
-                    const shortName = msg.username.replace(/^Player-/, '');
-                    const label = msg.trackIndex >= 0 ? `@${msg.trackIndex + 1}` : '観覧';
+                    const shortName = msg.username.replace(/^プレイヤー-/, '').replace(/^Player-/, '');
+                    const label = msg.trackIndex >= 0 ? `トラック ${msg.trackIndex + 1}` : 'リスナー';
                     
                     return (
                       <div key={idx} className="flex items-start gap-2 text-2xs md:text-xs">
@@ -680,7 +686,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                             <span className="font-bold" style={{ color: trackColor }}>
                               {shortName} ({label})
                             </span>
-                            <span className="text-[9px] text-[#83769c]">
+                            <span className="text-[9px] text-[#83769c] font-mono">
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </span>
                           </div>
@@ -722,19 +728,19 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           )}
 
           {/* DAW Mounting View */}
-          <div className="bg-[#1d2b53] border-4 border-black p-1 shadow-[4px_4px_0px_#000] pixel-border-cyan flex flex-col flex-1 min-h-[450px]">
+          <div className="bg-[#1d2b53] border-4 border-black p-1 shadow-[4px_4px_0px_#000] pixel-border pixel-border-cyan flex flex-col flex-1 min-h-[450px]">
             {/* Header info bar */}
-            <div className="bg-black text-[#29adff] px-2.5 py-1 text-2xs md:text-xs tracking-wider flex justify-between">
-              <span>▒ COLLABORATIVE DAW EDITOR ▒</span>
-              <span>MODE: ADVANCED 15-TRACK</span>
+            <div className="bg-black text-[#29adff] px-2.5 py-1 text-2xs md:text-xs tracking-wider flex justify-between font-mono">
+              <span>▒ COLLABORATIVE PIXEL SEQUENCER ▒</span>
+              <span>15-TRACK MODE</span>
             </div>
             
             {/* DTM Mounting container */}
             <div className="flex-1 bg-black overflow-hidden flex flex-col relative">
               {!isDawReady && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black text-[#83769c] z-30 select-none">
-                  <span className="pixel-blink text-sm">▒ LOADING DAW STUDIO… ▒</span>
-                  <span className="text-[#5f574f] text-2xs">Web Audio 楽器と合成エンジンをロード中...</span>
+                  <span className="pixel-blink text-sm font-mono">▒ INITIALIZING SESSION… ▒</span>
+                  <span className="text-[#5f574f] text-2xs">シンセサイザーと歌声合成エンジンをロード中…</span>
                 </div>
               )}
               <div 

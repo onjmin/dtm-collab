@@ -52,7 +52,7 @@ function AppContent() {
       setUsername(savedName);
     } else {
       const randomId = Math.floor(1000 + Math.random() * 9000);
-      const defaultName = `Player-${randomId}`;
+      const defaultName = `プレイヤー-${randomId}`;
       setUsername(defaultName);
       localStorage.setItem("dtm-username", defaultName);
     }
@@ -215,7 +215,7 @@ function AppContent() {
   if (!mounted) {
     return (
       <div className="flex flex-1 items-center justify-center bg-black min-h-screen text-[#83769c] font-mono select-none">
-        <span className="pixel-blink">▒ BOOTING RETRO AUDIO MODULES… ▒</span>
+        <span className="pixel-blink">▒ 音声エンジンを起動中… ▒</span>
       </div>
     );
   }
@@ -223,10 +223,10 @@ function AppContent() {
   // Render DAW Editor when inside a room
   if (roomId) {
     return (
-      <main className="flex flex-1 flex-col py-6 px-4 bg-black select-none custom-grid min-h-screen">
+      <main className="flex flex-1 flex-col py-6 px-4 select-none custom-grid min-h-screen">
         <DawEditor
           roomId={roomId}
-          username={username || "Player"}
+          username={username || "プレイヤー"}
           userId={userId}
           secretWord={secretWordFromUrl}
           onLeave={handleLeaveRoom}
@@ -237,16 +237,16 @@ function AppContent() {
 
   // Render Lobby view
   return (
-    <main className="flex flex-1 flex-col py-8 px-4 bg-black select-none custom-grid min-h-screen">
+    <main className="flex flex-1 flex-col py-8 px-4 select-none custom-grid min-h-screen">
       <div className="w-full max-w-4xl mx-auto flex flex-col gap-6">
         
         {/* Retro Header Banner */}
         <header className="pixel-border p-5 text-center flex flex-col items-center justify-center gap-2 pixel-border-cyan">
           <h1 className="pixel-title text-xl md:text-3xl font-bold tracking-widest text-[#29adff] select-none uppercase">
-            ♪ DTM COLLAB STUDIO ♪
+            ♪ DTMコラボ ♪
           </h1>
-          <p className="text-2xs md:text-xs text-[#ff77a8] tracking-widest uppercase select-none">
-            マルチプレイピコピコ音楽室 ・ モバイルファーストDAW
+          <p className="text-2xs md:text-xs text-[#ff77a8] tracking-widest uppercase select-none font-mono">
+            COLLABORATIVE CHIPTUNE STUDIO
           </p>
         </header>
 
@@ -267,10 +267,10 @@ function AppContent() {
         <section className="pixel-border p-4 bg-[#1d2b53] pixel-border-yellow flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-[#ffec27] font-bold tracking-wider">
-              ▒ アバター名設定
+              ▒ プレイヤー名設定
             </span>
             <span className="text-2xs text-[#83769c]">
-              作曲時に他のプレイヤーに表示される名前です。
+              セッション中に他のプレイヤーに表示される名前です。
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -293,7 +293,7 @@ function AppContent() {
           <div className="pixel-border p-4 flex flex-col gap-4 pixel-border-cyan bg-[#1d2b53]">
             <div className="flex items-center justify-between border-b-2 border-[#5f574f] pb-2">
               <span className="font-bold text-[#29adff] text-sm tracking-wider">
-                🌏 公開音楽室 (誰でも参加可能)
+                🌏 パブリックセッション (誰でも参加可能)
               </span>
               <button
                 onClick={() => {
@@ -309,14 +309,14 @@ function AppContent() {
             {/* Scrollable list */}
             <div className="flex flex-col gap-3 min-h-[220px] max-h-[350px] overflow-y-auto pr-1">
               {isLoadingRooms && (
-                <div className="text-xs text-[#83769c] text-center py-10 pixel-blink">
-                  ▒ ルーム情報を読み込み中…
+                <div className="text-xs text-[#83769c] text-center py-10 pixel-blink font-mono">
+                  ▒ LOADING ROOMS…
                 </div>
               )}
 
               {!isLoadingRooms && roomsList.filter(r => !r.isPrivate).length === 0 && (
                 <div className="text-2xs text-[#83769c] text-center py-12 italic">
-                  公開中の音楽室はありません。
+                  公開中のセッションルームはありません。
                   <br />「新規作成」から新しく部屋を作りましょう！
                 </div>
               )}
@@ -330,13 +330,13 @@ function AppContent() {
                     <span className="font-bold text-white text-xs truncate">
                       {room.name}
                     </span>
-                    <span className="text-[10px] text-[#83769c]">
+                    <span className="text-[10px] text-[#83769c] font-mono">
                       ID: {room.id}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-[10px] text-[#00e436] bg-[#00e436]/10 px-1.5 border border-[#00e436]">
-                      {room.playerCount} 人 演奏中
+                    <span className="text-[10px] font-bold font-mono text-[#00e436] bg-[#00e436]/10 px-2 py-0.5 border border-[#00e436]">
+                      {room.playerCount} PLAYERS
                     </span>
                     <button
                       onClick={() => handleJoinClick(room)}
@@ -354,7 +354,7 @@ function AppContent() {
           <div className="pixel-border p-4 flex flex-col gap-4 pixel-border-pink bg-[#1d2b53]">
             <div className="flex items-center justify-between border-b-2 border-[#5f574f] pb-2">
               <span className="font-bold text-[#ff77a8] text-sm tracking-wider">
-                🔒 限定音楽室 (秘密の言葉が必要)
+                🔒 プライベートセッション (合言葉が必要)
               </span>
               <button
                 onClick={() => {
@@ -370,15 +370,15 @@ function AppContent() {
             {/* Scrollable list */}
             <div className="flex flex-col gap-3 min-h-[220px] max-h-[350px] overflow-y-auto pr-1">
               {isLoadingRooms && (
-                <div className="text-xs text-[#83769c] text-center py-10 pixel-blink">
-                  ▒ ルーム情報を読み込み中…
+                <div className="text-xs text-[#83769c] text-center py-10 pixel-blink font-mono">
+                  ▒ LOADING ROOMS…
                 </div>
               )}
 
               {!isLoadingRooms && roomsList.filter(r => r.isPrivate).length === 0 && (
                 <div className="text-2xs text-[#83769c] text-center py-12 italic">
-                  プライベート音楽室はありません。
-                  <br />秘密の合言葉を決めて部屋を作成できます。
+                  プライベートセッションはありません。
+                  <br />合言葉を設定してルームを作成できます。
                 </div>
               )}
 
@@ -391,13 +391,13 @@ function AppContent() {
                     <span className="font-bold text-white text-xs truncate flex items-center gap-1.5">
                       🔒 {room.name}
                     </span>
-                    <span className="text-[10px] text-[#83769c]">
+                    <span className="text-[10px] text-[#83769c] font-mono">
                       ID: {room.id}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-[10px] text-[#ff77a8] bg-[#ff77a8]/10 px-1.5 border border-[#ff77a8]">
-                      {room.playerCount} 人
+                    <span className="text-[10px] font-bold font-mono text-[#ff77a8] bg-[#ff77a8]/10 px-2 py-0.5 border border-[#ff77a8]">
+                      {room.playerCount} PLAYERS
                     </span>
                     <button
                       onClick={() => handleJoinClick(room)}
@@ -415,7 +415,7 @@ function AppContent() {
 
         {/* Footer Credit */}
         <footer className="text-center text-[11px] text-[#5f574f] tracking-widest mt-4">
-          <span>♪ @onjmin/dtm ENGINE POWERED</span>
+          <span>♪ 音楽エンジン: @onjmin/dtm</span>
           <button 
             onClick={() => setRefreshTrigger(p => p + 1)}
             className="ml-4 pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
@@ -430,11 +430,11 @@ function AppContent() {
       <PixelModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title={createPrivate ? "限定部屋を作る" : "公開部屋を作る"}
+        title={createPrivate ? "プライベートルームを作成" : "パブリックルームを作成"}
       >
         <form onSubmit={handleCreateRoom} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[#ffec27] font-bold">音楽室名</label>
+            <label className="text-xs text-[#ffec27] font-bold">ルーム名</label>
             <input
               type="text"
               value={createName}
@@ -452,16 +452,16 @@ function AppContent() {
               id="is_private"
               checked={createPrivate}
               onChange={(e) => setCreatePrivate(e.target.checked)}
-              className="w-4 h-4 accent-[#ff77a8] bg-black border-2 border-black outline-none"
+              className="w-4 h-4 accent-[#ff77a8] bg-black border border-black outline-none cursor-pointer"
             />
             <label htmlFor="is_private" className="text-xs text-white font-bold cursor-pointer select-none">
-              プライベート部屋にする (秘密の言葉が必要)
+              プライベートルームにする (合言葉が必要)
             </label>
           </div>
 
           {createPrivate && (
             <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-100">
-              <label className="text-xs text-[#ff77a8] font-bold">秘密の言葉</label>
+              <label className="text-xs text-[#ff77a8] font-bold">合言葉 (パスワード)</label>
               <input
                 type="text"
                 value={createSecretWord}
@@ -502,21 +502,21 @@ function AppContent() {
       <PixelModal
         isOpen={isJoinPasswordOpen}
         onClose={() => setIsJoinPasswordOpen(false)}
-        title="秘密の言葉を入力"
+        title="合言葉を入力"
       >
         <form onSubmit={handleJoinPrivateSubmit} className="flex flex-col gap-4">
           <div className="text-2xs text-[#83769c] select-none">
-            部屋「{selectedJoinRoom?.name}」は鍵がかかっています。<br />
-            入室するために「秘密の言葉」を入力してください。
+            ルーム「{selectedJoinRoom?.name}」はプライベートです。<br />
+            入室するために「合言葉」を入力してください。
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[#ff77a8] font-bold">秘密の言葉</label>
+            <label className="text-xs text-[#ff77a8] font-bold">合言葉</label>
             <input
               type="text"
               value={joinPassword}
               onChange={(e) => setJoinPassword(e.target.value)}
-              placeholder="秘密の言葉を入力..."
+              placeholder="合言葉を入力..."
               maxLength={20}
               className="pixel-input text-xs"
               required
@@ -555,7 +555,7 @@ export default function Home() {
   return (
     <Suspense fallback={
       <div className="flex flex-1 items-center justify-center bg-black min-h-screen text-[#83769c] font-mono select-none">
-        <span className="pixel-blink">▒ LOADING APP LOBBY… ▒</span>
+        <span className="pixel-blink">▒ ロビーを読み込み中… ▒</span>
       </div>
     }>
       <AppContent />

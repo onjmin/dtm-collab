@@ -528,6 +528,7 @@ wss.on('connection', async (ws, request) => {
         yourTrackIndex: trackIndex,
         yourNotes,
         creatorId: room.creatorId,
+        roomName: room.name,
         nextReset: 0 // We don't force hourly resets, DB is permanent
     }));
 
