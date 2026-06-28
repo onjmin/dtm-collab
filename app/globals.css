@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -14,7 +14,7 @@
   --c-text: #fff1e8;
   --c-purple: #7e2553;
   
-  --font-sans: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'DotGothic16', 'Press Start 2P', monospace;
   --font-pixel-en: 'Press Start 2P', cursive;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
