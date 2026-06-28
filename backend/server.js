@@ -113,6 +113,20 @@ app.use(express.json());
 
 // ─── API Routes ──────────────────────────────────────────────
 
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'DTM Collab Backend API', 
+        version: '1.0.0',
+        status: 'running',
+        endpoints: {
+            health: '/health',
+            rooms: '/api/rooms',
+            ws: '/ws'
+        }
+    });
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
