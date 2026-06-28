@@ -866,7 +866,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           )}
 
           {/* DAW Mounting View */}
-          <div className="bg-[#1d2b53] border-4 border-black shadow-[4px_4px_0px_#000] pixel-border pixel-border-cyan flex flex-col flex-1 min-h-[450px]">
+          <div className="bg-[#1d2b53] pixel-border-cyan-outline flex flex-col flex-1 min-h-[450px]">
             {/* Header info bar */}
             <div className="bg-black text-[#29adff] px-2.5 py-1 text-2xs md:text-xs tracking-wider flex justify-between font-mono">
               <span>▒ COLLABORATIVE PIXEL SEQUENCER ▒</span>

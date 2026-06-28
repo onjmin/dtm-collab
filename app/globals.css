@@ -55,6 +55,12 @@ body {
   box-shadow: inset 0 0 0 2px #000, 0 0 0 2px var(--c-cyan), 4px 4px 0 #000;
 }
 
+/* DAW container: outline-based border that doesn't compress inner layout */
+.pixel-border-cyan-outline {
+  outline: 4px solid #000;
+  box-shadow: 0 0 0 6px var(--c-cyan), 4px 4px 0 #000;
+}
+
 .pixel-border-pink {
   border: 4px solid #000;
   box-shadow: inset 0 0 0 2px #000, 0 0 0 2px var(--c-pink), 4px 4px 0 #000;
