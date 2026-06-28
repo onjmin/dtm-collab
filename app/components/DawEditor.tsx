@@ -557,11 +557,14 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   // Clear my own track entirely after modal confirmation
   const handleClearTrack = () => {
     setIsClearConfirmOpen(false);
-    if (isSpectator || myTrackIndex < 0 || !dawRef.current) return;
+    if (isSpectator || myTrackIndex < 0) return;
 
-    const myTrackId = TRACK_IDS[myTrackIndex];
-    if (myTrackId) {
-      dawRef.current.clearTrack(myTrackId);
+    // Send clear-track request to server
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: "clear-track", 
+        trackIndex: myTrackIndex 
+      }));
     }
   };
 

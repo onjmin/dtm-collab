@@ -663,6 +663,38 @@ wss.on('connection', async (ws, request) => {
                 break;
             }
 
+            case 'clear-track': {
+                const user = room.users.get(userId);
+                if (!user || user.trackIndex < 0) return;
+
+                // Only allow users to clear their own track
+                if (msg.trackIndex !== user.trackIndex) return;
+
+                // Generate removed array for all notes in the track
+                const entry = room.trackNotes.get(user.trackIndex);
+                if (entry) {
+                    const allNotes = entry.notes;
+                    const removed = allNotes.map(n => ({
+                        startStep: n.startStep,
+                        pitch: n.pitch
+                    }));
+                    entry.notes = [];
+
+                    // Broadcast the clear as a patch with all notes removed
+                    broadcast(room, {
+                        type: 'patch',
+                        userId,
+                        trackIndex: user.trackIndex,
+                        added: [],
+                        removed
+                    }, userId);
+
+                    // Queue save to DB
+                    queueSave(roomId);
+                }
+                break;
+            }
+
             case 'lyrics': {
                 const user = room.users.get(userId);
                 if (!user || user.trackIndex < 0) return;
