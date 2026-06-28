@@ -263,10 +263,26 @@ function AppContent() {
           </div>
         )}
 
+        {/* Site Description & Concept */}
+        <section className="pixel-border p-4 bg-[#1d2b53] pixel-border-yellow flex flex-col gap-2.5">
+          <span className="text-xs text-[#ffec27] font-bold tracking-wider">
+            ▒ ABOUT THIS STUDIO
+          </span>
+          <p className="text-2xs md:text-xs text-[#fff1e8] leading-relaxed">
+            ここは、ブラウザを開くだけで、離れた場所にいる誰とでもリアルタイムにピコピコ音楽（8bitシーケンサー）を作れる共同セッションスタジオです。
+            インストールや難しい設定は不要。部屋を作ってURLを共有するだけで、すぐに合奏を始められます。
+          </p>
+          <div className="text-2xs text-[#83769c] border-t-2 border-[#5f574f]/40 pt-2.5 flex flex-col gap-1.5 font-mono">
+            <div>▶ 誰かが置いた音は、全員の画面へ瞬時に同期されます。</div>
+            <div>▶ 同時に最大15人まで、異なるパート（トラック）で合奏可能です。</div>
+            <div>▶ チャットでアイデアを相談しながら、その場で曲を作り上げられます。</div>
+          </div>
+        </section>
+
         {/* User profile selection */}
-        <section className="pixel-border p-4 bg-[#1d2b53] pixel-border-yellow flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <section className="pixel-border p-4 bg-[#1d2b53] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-[#ffec27] font-bold tracking-wider">
+            <span className="text-xs text-[#fff1e8] font-bold tracking-wider">
               ▒ プレイヤー名設定
             </span>
             <span className="text-2xs text-[#83769c]">

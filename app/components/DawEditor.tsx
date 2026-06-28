@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import type { DawInstance, NoteData, NoteRemove } from "@onjmin/dtm";
+import PixelModal from "./PixelModal";
 
 // Track emojis (Twelve zodiacs + Cat, Fox, Raccoon)
 const TRACK_EMOJIS = ['🐀','🐄','🐅','🐇','🐉','🐍','🐎','🐑','🐒','🐓','🐕','🐗','🐈','🦊','🦝'];
@@ -83,6 +84,13 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const [isDawReady, setIsDawReady] = useState(false);
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [roomName, setRoomName] = useState<string>("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [chatPage, setChatPage] = useState(1);
+  const chatMessagesCountRef = useRef(chatMessages.length);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   // Offscreen edit arrows
   const [arrowLeftText, setArrowLeftText] = useState("");
@@ -128,18 +136,34 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   };
 
   // Trigger offscreen indicators
-  const triggerOffscreenIndicator = (trackIdx: number) => {
-    // Determine edit direction: simple right indicator for now
+  const triggerOffscreenIndicator = (trackIdx: number, step: number, pitch: number) => {
+    if (!dawRef.current) return;
+
+    // Check where the note is relative to the current viewport
+    const { onScreen, side } = dawRef.current.noteToCanvas(step, pitch);
+    if (onScreen || !side) return; // Only show indicator if offscreen
+
     const name = TRACK_NAMES[trackIdx] || `T${trackIdx + 1}`;
     const color = TRACK_COLORS[trackIdx] || "#fff";
+    const emoji = TRACK_EMOJIS[trackIdx] || '🎵';
     
-    setArrowRightText(`${TRACK_EMOJIS[trackIdx] || '🎵'} ${name} ▶`);
-    setArrowRightColor(color);
+    if (side === "left") {
+      setArrowLeftText(`◀ ${emoji} ${name}`);
+      setArrowLeftColor(color);
 
-    if (arrowRightTimer.current) clearTimeout(arrowRightTimer.current);
-    arrowRightTimer.current = setTimeout(() => {
-      setArrowRightText("");
-    }, 2500);
+      if (arrowLeftTimer.current) clearTimeout(arrowLeftTimer.current);
+      arrowLeftTimer.current = setTimeout(() => {
+        setArrowLeftText("");
+      }, 2500);
+    } else if (side === "right") {
+      setArrowRightText(`${emoji} ${name} ▶`);
+      setArrowRightColor(color);
+
+      if (arrowRightTimer.current) clearTimeout(arrowRightTimer.current);
+      arrowRightTimer.current = setTimeout(() => {
+        setArrowRightText("");
+      }, 2500);
+    }
   };
 
   // Send edits via WebSocket
@@ -182,7 +206,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   };
 
   // Initialize DAW Editor
-  const initDawEditor = async (spectatorMode: boolean, initialTrackIdx: number) => {
+  const initDawEditor = async (spectatorMode: boolean, initialTrackIdx: number, roomCreatorId: string | null) => {
     if (!dawContainerRef.current) return;
     
     try {
@@ -221,7 +245,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             wsRef.current.send(JSON.stringify({ type: "lyrics", trackId, data }));
           }
         },
-        onTrackInstrumentChange: spectatorMode ? undefined : (tIdx, instrumentName) => {
+        onTrackInstrumentChange: (spectatorMode || userIdRef.current !== roomCreatorId) ? undefined : (tIdx, instrumentName) => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: "track-instrument", trackIndex: tIdx, instrumentName }));
           }
@@ -293,7 +317,8 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           
           setMyTrackIndex(trackIdx);
           setIsSpectator(spectator);
-          if (msg.creatorId) setCreatorId(msg.creatorId);
+          const cId = msg.creatorId || null;
+          if (cId) setCreatorId(cId);
           if (msg.roomName) setRoomName(msg.roomName);
 
           if (msg.yourNotes?.length > 0) {
@@ -308,7 +333,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           });
 
           // Initialize DAW Editor once room joined is confirmed
-          initDawEditor(spectator, trackIdx);
+          initDawEditor(spectator, trackIdx, cId);
           break;
         }
 
@@ -371,7 +396,12 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             const trackId = TRACK_IDS[msg.trackIndex];
             if (trackId) {
               dawRef.current.applyPatch(trackId, msg.added || [], msg.removed || []);
-              triggerOffscreenIndicator(msg.trackIndex);
+              
+              // Get the first added or removed note's coordinate to determine offscreen direction
+              const refNote = (msg.added && msg.added[0]) || (msg.removed && msg.removed[0]);
+              if (refNote) {
+                triggerOffscreenIndicator(msg.trackIndex, refNote.startStep, refNote.pitch);
+              }
             }
           }
           break;
@@ -442,6 +472,9 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       } else if (event.code === 4004) {
         setRelayStatusMsg("エラー: 部屋が見つかりません");
         setErrorMessage("指定された部屋が存在しません。");
+      } else if (event.code === 4010) {
+        setRelayStatusMsg("エラー: キックのクールダウン中");
+        setErrorMessage("この部屋からキックされたため、再入室にはクールダウン（1分間）が必要です。しばらくお待ちください。");
       } else {
         setRelayStatusMsg("切断されました");
       }
@@ -478,13 +511,59 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
     }
   };
 
-  // Scroll chat to bottom automatically
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+  // Chat Pagination & Auto-follow logic
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const CHAT_ITEMS_PER_PAGE = 10;
+  const totalChatPages = Math.max(1, Math.ceil(chatMessages.length / CHAT_ITEMS_PER_PAGE));
+
   useEffect(() => {
-    if (!isChatCollapsed && chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    const prevCount = chatMessagesCountRef.current;
+    chatMessagesCountRef.current = chatMessages.length;
+
+    const prevTotalPages = Math.max(1, Math.ceil(prevCount / CHAT_ITEMS_PER_PAGE));
+    const newTotalPages = Math.max(1, Math.ceil(chatMessages.length / CHAT_ITEMS_PER_PAGE));
+
+    const isViewingLatest = chatPage === prevTotalPages || chatMessages.length <= CHAT_ITEMS_PER_PAGE;
+
+    // Auto-advance to the latest page and clear unread if already looking at the latest page
+    if (!isChatCollapsed && isViewingLatest) {
+      setChatPage(newTotalPages);
+      setUnreadCount(0);
+      setHasUnread(false);
+    } else {
+      if (chatMessages.length > prevCount) {
+        const added = chatMessages.length - prevCount;
+        setUnreadCount(prev => prev + added);
+        setHasUnread(true);
+      }
     }
-  }, [chatMessages, isChatCollapsed]);
+  }, [chatMessages]);
+
+  // Clear unread count when switching to the latest page manually
+  useEffect(() => {
+    if (!isChatCollapsed && chatPage === totalChatPages) {
+      setUnreadCount(0);
+      setHasUnread(false);
+    }
+  }, [chatPage, totalChatPages, isChatCollapsed]);
+
+  // Scroll chat to bottom only when viewing the latest page
+  useEffect(() => {
+    if (!isChatCollapsed && chatContainerRef.current && chatPage === totalChatPages) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages, isChatCollapsed, chatPage, totalChatPages]);
+
+  // Clear my own track entirely after modal confirmation
+  const handleClearTrack = () => {
+    setIsClearConfirmOpen(false);
+    if (isSpectator || myTrackIndex < 0 || !dawRef.current) return;
+
+    const myTrackId = TRACK_IDS[myTrackIndex];
+    if (myTrackId) {
+      dawRef.current.clearTrack(myTrackId);
+    }
+  };
 
   // Copy shareable link
   const copyShareLink = () => {
@@ -492,10 +571,17 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
     if (secretWord) {
       url += `&secret=${encodeURIComponent(secretWord)}`;
     }
-    navigator.clipboard.writeText(url).then(() => {
-      alert("招待用リンクをクリップボードにコピーしました！");
+    setShareUrl(url);
+    setIsShareModalOpen(true);
+    setCopied(false);
+  };
+
+  const handleCopyLinkToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      alert(`リンクをコピーできませんでした。直接コピーしてください:\n${url}`);
+      alert(`リンクをコピーできませんでした。直接コピーしてください:\n${shareUrl}`);
     });
   };
 
@@ -521,6 +607,14 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {!isSpectator && myTrackIndex >= 0 && (
+            <button 
+              onClick={() => setIsClearConfirmOpen(true)} 
+              className="pixel-btn pixel-btn-red text-xs"
+            >
+              🗑️ トラック全消去
+            </button>
+          )}
           <button 
             onClick={copyShareLink} 
             className="pixel-btn pixel-btn-pink text-xs"
@@ -642,16 +736,22 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           <div className="bg-[#1d2b53] border-4 border-black shadow-[4px_4px_0px_#000] pixel-border pixel-border-pink flex flex-col">
             <div 
               onClick={() => {
-                setIsChatCollapsed(!isChatCollapsed);
-                setHasUnread(false);
+                const nextCollapse = !isChatCollapsed;
+                setIsChatCollapsed(nextCollapse);
+                if (!nextCollapse) {
+                  // Opening the chat: jump to latest page and clear unread
+                  setChatPage(totalChatPages);
+                  setUnreadCount(0);
+                  setHasUnread(false);
+                }
               }}
               className="bg-black text-[#ff77a8] px-3 py-2 cursor-pointer flex items-center justify-between font-bold text-xs select-none hover:text-[#ffec27] transition-colors"
             >
               <div className="flex items-center gap-2">
                 <span>{isChatCollapsed ? "▶" : "▼"} セッションチャット</span>
-                {hasUnread && (
-                  <span className="text-[#ffec27] animate-pulse bg-[#ffec27]/10 px-1.5 border border-[#ffec27]">
-                    新着あり！
+                {unreadCount > 0 && (
+                  <span className="text-[#ffec27] animate-pulse bg-[#ffec27]/10 px-1.5 border border-[#ffec27] text-3xs font-mono ml-1.5">
+                    {unreadCount} NEW
                   </span>
                 )}
               </div>
@@ -661,13 +761,16 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             {!isChatCollapsed && (
               <div className="p-3 flex flex-col gap-2">
                 {/* Message logs */}
-                <div className="bg-[#0a0a14] border-3 border-black max-h-[140px] overflow-y-auto p-2 flex flex-col gap-1.5">
+                <div 
+                  ref={chatContainerRef}
+                  className="bg-[#0a0a14] border-3 border-black max-h-[140px] overflow-y-auto p-2 flex flex-col gap-1.5"
+                >
                   {chatMessages.length === 0 && (
                     <div className="text-2xs text-[#83769c] italic text-center py-4 select-none">
                       メッセージはありません。チャットを入力してみましょう！
                     </div>
                   )}
-                  {chatMessages.map((msg, idx) => {
+                  {chatMessages.slice((chatPage - 1) * CHAT_ITEMS_PER_PAGE, chatPage * CHAT_ITEMS_PER_PAGE).map((msg, idx) => {
                     const trackColor = TRACK_COLORS[msg.trackIndex] || "var(--c-text)";
                     const emoji = TRACK_EMOJIS[msg.trackIndex] || "👻";
                     const shortName = msg.username.replace(/^プレイヤー-/, '').replace(/^Player-/, '');
@@ -695,8 +798,32 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                       </div>
                     );
                   })}
-                  <div ref={chatMessagesEndRef} />
                 </div>
+
+                {/* Pagination Controls */}
+                {chatMessages.length > 0 && (
+                  <div className="flex items-center justify-between border-t-2 border-black pt-2.5 text-2xs select-none">
+                    <button
+                      type="button"
+                      disabled={chatPage <= 1}
+                      onClick={() => setChatPage(p => Math.max(1, p - 1))}
+                      className="pixel-btn text-3xs py-0.5 px-2.5 disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      ◀ 前のログ
+                    </button>
+                    <span className="font-mono text-[#83769c]">
+                      PAGE {chatPage} / {totalChatPages} ({chatMessages.length}件)
+                    </span>
+                    <button
+                      type="button"
+                      disabled={chatPage >= totalChatPages}
+                      onClick={() => setChatPage(p => Math.min(totalChatPages, p + 1))}
+                      className="pixel-btn text-3xs py-0.5 px-2.5 disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      次のログ ▶
+                    </button>
+                  </div>
+                )}
 
                 {/* Form input */}
                 <form onSubmit={handleChatSubmit} className="flex gap-2">
@@ -718,6 +845,14 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           </div>
 
           {/* Off-screen edit indicators */}
+          {arrowLeftText && (
+            <div 
+              className="bg-black/95 text-xs font-bold border-2 border-dashed px-3 py-1.5 z-40 fixed top-1/2 left-4 transform -translate-y-1/2 select-none shadow-[2px_2px_0_#000] animate-bounce"
+              style={{ borderColor: arrowLeftColor, color: arrowLeftColor }}
+            >
+              {arrowLeftText}
+            </div>
+          )}
           {arrowRightText && (
             <div 
               className="bg-black/95 text-xs font-bold border-2 border-dashed px-3 py-1.5 z-40 fixed top-1/2 right-4 transform -translate-y-1/2 select-none shadow-[2px_2px_0_#000] animate-bounce"
@@ -754,6 +889,82 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         </div>
 
       </div>
+
+      {/* SHARE LINK MODAL */}
+      <PixelModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title="招待リンクを共有"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="text-2xs text-[#83769c] select-none">
+            他のプレイヤーをこのセッションに招待するためのURLです。<br />
+            以下のリンクをコピーして共有してください。
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#ffec27] font-bold">招待用URL</label>
+            <input
+              type="text"
+              readOnly
+              value={shareUrl}
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+              className="pixel-input text-xs font-mono bg-black w-full"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setIsShareModalOpen(false)}
+              className="pixel-btn text-xs"
+            >
+              閉じる
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyLinkToClipboard}
+              className="pixel-btn pixel-btn-cyan text-xs"
+            >
+              {copied ? "コピー完了！" : "リンクをコピー"}
+            </button>
+          </div>
+        </div>
+      </PixelModal>
+
+      {/* CLEAR TRACK CONFIRMATION MODAL */}
+      <PixelModal
+        isOpen={isClearConfirmOpen}
+        onClose={() => setIsClearConfirmOpen(false)}
+        title="トラックの全消去"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="text-xs text-[#ff004d] font-bold select-none">
+            ⚠️ 警告: この操作は取り消せません！
+          </div>
+
+          <div className="text-2xs text-[#83769c] leading-relaxed select-none">
+            あなたの担当トラック（<span className="font-mono text-white">トラック {myTrackIndex + 1}</span>）に打ち込まれた音符をすべて消去します。よろしいですか？
+          </div>
+
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setIsClearConfirmOpen(false)}
+              className="pixel-btn text-xs"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={handleClearTrack}
+              className="pixel-btn pixel-btn-red text-xs"
+            >
+              消去する
+            </button>
+          </div>
+        </div>
+      </PixelModal>
     </div>
   );
 }

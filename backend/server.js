@@ -209,7 +209,8 @@ app.post('/api/rooms', async (req, res) => {
             trackNotes: new Map(),
             trackLyrics: new Map(),
             trackInstruments: new Map(),
-            chatHistory: []
+            chatHistory: [],
+            kickedUsers: new Map()
         });
 
         console.log(`[backend] Created room: ${id} ("${cleanName}", private=${isPrivateBool}, creator=${creatorId})`);
@@ -332,7 +333,8 @@ const loadRoomToMemory = async (roomId) => {
             trackNotes,
             trackLyrics,
             trackInstruments,
-            chatHistory: Array.isArray(row.chat_history) ? row.chat_history : []
+            chatHistory: Array.isArray(row.chat_history) ? row.chat_history : [],
+            kickedUsers: new Map()
         };
 
         rooms.set(roomId, room);
@@ -461,6 +463,20 @@ wss.on('connection', async (ws, request) => {
     if (!room) {
         ws.close(4004, 'Room not found');
         return;
+    }
+
+    // Check if the user is kicked and in cooldown (60 seconds)
+    if (room.kickedUsers && room.kickedUsers.has(userId)) {
+        const kickedTime = room.kickedUsers.get(userId);
+        const cooldownRemaining = 60000 - (Date.now() - kickedTime);
+        if (cooldownRemaining > 0) {
+            console.log(`[backend] Blocked join attempt from kicked user ${userId} in room ${roomId} (cooldown: ${Math.ceil(cooldownRemaining / 1000)}s remaining)`);
+            ws.close(4010, `Kicked: Please wait ${Math.ceil(cooldownRemaining / 1000)} seconds before joining again`);
+            return;
+        } else {
+            // Cooldown expired, cleanup memory
+            room.kickedUsers.delete(userId);
+        }
     }
 
     // If room is private, authenticate secret word
@@ -676,7 +692,13 @@ wss.on('connection', async (ws, request) => {
 
             case 'track-instrument': {
                 const user = room.users.get(userId);
-                if (!user || user.trackIndex < 0) return;
+                if (!user) return;
+
+                // Security restriction: Only the room creator (owner) can change instrument presets
+                if (room.creatorId && userId !== room.creatorId) {
+                    console.log(`[backend] Blocked unauthorized instrument change from user ${userId} in room ${roomId}`);
+                    return;
+                }
 
                 if (msg.trackIndex != null) {
                     room.trackInstruments.set(msg.trackIndex, msg.instrumentName ?? '');
@@ -720,6 +742,11 @@ wss.on('connection', async (ws, request) => {
                 const targetUser = room.users.get(targetUserId);
                 if (targetUser) {
                     console.log(`[backend] Creator kicked target ${targetUserId} (${targetUser.username})`);
+                    
+                    // Record kicked timestamp (60 seconds cooldown)
+                    if (!room.kickedUsers) room.kickedUsers = new Map();
+                    room.kickedUsers.set(targetUserId, Date.now());
+
                     try {
                         targetUser.ws.send(JSON.stringify({ type: 'kicked' }));
                         // Close connection with custom code
