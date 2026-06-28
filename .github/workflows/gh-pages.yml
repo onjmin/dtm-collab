@@ -1,0 +1,74 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dtm-collab
+        uses: actions/checkout@v4
+        with:
+          path: dtm-collab
+
+      - name: Checkout dtm (library dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: onjmin/dtm
+          path: dtm
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: dtm-collab/pnpm-lock.yaml
+
+      - name: Build local dtm library
+        run: |
+          cd dtm
+          pnpm install
+          pnpm run build
+
+      - name: Install dtm-collab dependencies
+        run: |
+          cd dtm-collab
+          pnpm install
+
+      - name: Build next.js app
+        run: |
+          cd dtm-collab
+          pnpm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dtm-collab/out
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

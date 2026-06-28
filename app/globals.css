@@ -1,26 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --c-black: #000000;
+  --c-navy: #1d2b53;
+  --c-cyan: #29adff;
+  --c-yellow: #ffec27;
+  --c-green: #00e436;
+  --c-pink: #ff77a8;
+  --c-red: #ff004d;
+  --c-gray: #5f574f;
+  --c-muted: #83769c;
+  --c-text: #fff1e8;
+  --c-purple: #7e2553;
+  
+  --font-pixel-jp: 'DotGothic16', sans-serif;
+  --font-pixel-en: 'Press Start 2P', cursive;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--c-black);
+  background-image: radial-gradient(circle, #1a1c2c 1.5px, transparent 1.5px);
+  background-size: 12px 12px;
+  color: var(--c-text);
+  font-family: var(--font-pixel-jp), ui-monospace, monospace;
+  font-size: 14px;
+  image-rendering: pixelated;
+  overflow-x: hidden;
+  position: relative;
+  min-height: 100vh;
+}
+
+/* CRT Scanline Effect Overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1.5px,
+    transparent 1.5px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Blinking animations for retro feel */
+@keyframes blink-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.pixel-blink {
+  animation: blink-slow 1.2s steps(2) infinite;
+}
+
+/* Retro Pixel Art Borders & Buttons */
+.pixel-border {
+  border: 4px solid #000;
+  image-rendering: pixelated;
+  position: relative;
+  background-color: var(--c-navy);
+  box-shadow: 4px 4px 0px #000;
+}
+
+.pixel-border-cyan {
+  border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #000, 0 0 0 2px var(--c-cyan), 4px 4px 0 #000;
+}
+
+.pixel-border-pink {
+  border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #000, 0 0 0 2px var(--c-pink), 4px 4px 0 #000;
+}
+
+.pixel-border-yellow {
+  border: 4px solid #000;
+  box-shadow: inset 0 0 0 2px #000, 0 0 0 2px var(--c-yellow), 4px 4px 0 #000;
+}
+
+.pixel-btn {
+  font-family: var(--font-pixel-jp);
+  background-color: var(--c-gray);
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0px #000;
+  color: var(--c-text);
+  padding: 6px 12px;
+  cursor: pointer;
+  outline: none;
+  image-rendering: pixelated;
+  transition: transform 0.05s, box-shadow 0.05s;
+  user-select: none;
+}
+
+.pixel-btn:hover {
+  background-color: var(--c-muted);
+  color: var(--c-yellow);
+}
+
+.pixel-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0px 0px 0px #000;
+}
+
+.pixel-btn-cyan {
+  background-color: var(--c-cyan);
+  color: #000;
+}
+.pixel-btn-cyan:hover {
+  background-color: #fff;
+  color: var(--c-navy);
+}
+
+.pixel-btn-pink {
+  background-color: var(--c-pink);
+  color: #000;
+}
+.pixel-btn-pink:hover {
+  background-color: #fff;
+  color: var(--c-purple);
+}
+
+.pixel-btn-red {
+  background-color: var(--c-red);
+  color: #fff;
+}
+.pixel-btn-red:hover {
+  background-color: #ff77a8;
+  color: #000;
+}
+
+.pixel-input {
+  background-color: #000;
+  border: 3px solid #000;
+  box-shadow: 0 0 0 2px var(--c-gray);
+  color: var(--c-text);
+  font-family: var(--font-pixel-jp);
+  padding: 6px 10px;
+  outline: none;
+}
+
+.pixel-input:focus {
+  box-shadow: 0 0 0 2px var(--c-cyan);
+}
+
+/* Scrollbar customization in retro theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #000;
+  border-left: 2px solid var(--c-gray);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--c-gray);
+  border: 2px solid #000;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--c-muted);
+}
+
+/* DAW editor overrides for retro look */
+[data-dtm="macro-clear"],
+[data-dtm="macro-random"],
+[data-dtm="macro-harmonic"],
+[data-dtm="macro-mono"] {
+  display: none !important;
+}
+
+/* Ensure canvas elements from DTM render in crisp pixelated form */
+canvas {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Custom header decorations */
+.pixel-title {
+  font-family: var(--font-pixel-en);
+  text-shadow: 3px 3px 0px #000;
+}
+
+.custom-grid {
+  background-size: 20px 20px;
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
 }

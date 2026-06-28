@@ -1,65 +1,564 @@
-import Image from "next/image";
+"use client";
+
+import React, { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import PixelModal from "./components/PixelModal";
+import DawEditor from "./components/DawEditor";
+
+interface RoomItem {
+  id: string;
+  name: string;
+  isPrivate: boolean;
+  playerCount: number;
+  updatedAt: string;
+}
+
+function AppContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Route parameters
+  const roomId = searchParams.get("room") || "";
+  const secretWordFromUrl = searchParams.get("secret") || "";
+
+  // User States
+  const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // Lobby States
+  const [roomsList, setRoomsList] = useState<RoomItem[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // Modals States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createPrivate, setCreatePrivate] = useState(false);
+  const [createSecretWord, setCreateSecretWord] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const [isJoinPasswordOpen, setIsJoinPasswordOpen] = useState(false);
+  const [selectedJoinRoom, setSelectedJoinRoom] = useState<RoomItem | null>(null);
+  const [joinPassword, setJoinPassword] = useState("");
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  // Hydration fix & Init username
+  useEffect(() => {
+    setMounted(true);
+    const savedName = localStorage.getItem("dtm-username");
+    if (savedName) {
+      setUsername(savedName);
+    } else {
+      const randomId = Math.floor(1000 + Math.random() * 9000);
+      const defaultName = `Player-${randomId}`;
+      setUsername(defaultName);
+      localStorage.setItem("dtm-username", defaultName);
+    }
+
+    // Set or restore persistent unique User ID
+    let uid = localStorage.getItem("dtm-collab-uid");
+    if (!uid) {
+      uid = crypto.randomUUID();
+      localStorage.setItem("dtm-collab-uid", uid);
+    }
+    setUserId(uid);
+  }, []);
+
+  // Fetch API URL Helper
+  const getApiUrl = () => {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return `http://localhost:3001`;
+    }
+    const configUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (configUrl) {
+      return configUrl.endsWith("/") ? configUrl.slice(0, -1) : configUrl;
+    }
+    return `https://detailed-donkey-onjmin-fceb78f2.koyeb.app`;
+  };
+
+  // Load Rooms list
+  useEffect(() => {
+    if (!mounted || roomId) return; // Don't fetch list if already inside a room
+
+    setIsLoadingRooms(true);
+    fetch(`${getApiUrl()}/api/rooms`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
+      .then((data: RoomItem[]) => {
+        setRoomsList(data);
+        setApiError(null);
+        setIsLoadingRooms(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching rooms:", err);
+        setApiError("バックエンドサーバーに接続できません。ローカルサーバー (npm run dev) が起動しているか確認してください。");
+        setIsLoadingRooms(false);
+      });
+  }, [mounted, roomId, refreshTrigger]);
+
+  // Handle username changes
+  const handleUsernameChange = (val: string) => {
+    const clean = val.slice(0, 16);
+    setUsername(clean);
+    localStorage.setItem("dtm-username", clean);
+  };
+
+  // Create Room handler
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError(null);
+
+    const name = createName.trim();
+    if (!name) {
+      setCreateError("部屋名を入力してください。");
+      return;
+    }
+
+    if (createPrivate && !createSecretWord.trim()) {
+      setCreateError("プライベート部屋には秘密の言葉が必要です。");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getApiUrl()}/api/rooms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          isPrivate: createPrivate,
+          secretWord: createPrivate ? createSecretWord.trim() : "",
+          creatorId: userId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data.error || "部屋の作成に失敗しました。");
+        return;
+      }
+
+      // Close modal & reset fields
+      setIsCreateOpen(false);
+      setCreateName("");
+      setCreatePrivate(false);
+      setCreateSecretWord("");
+
+      // Route to room
+      let targetUrl = `?room=${encodeURIComponent(data.id)}`;
+      if (createPrivate) {
+        targetUrl += `&secret=${encodeURIComponent(createSecretWord.trim())}`;
+      }
+      router.push(targetUrl);
+    } catch (err) {
+      console.error(err);
+      setCreateError("サーバーとの通信に失敗しました。");
+    }
+  };
+
+  // Join private room modal trigger
+  const handleJoinClick = (room: RoomItem) => {
+    if (room.isPrivate) {
+      setSelectedJoinRoom(room);
+      setJoinPassword("");
+      setJoinError(null);
+      setIsJoinPasswordOpen(true);
+    } else {
+      router.push(`?room=${encodeURIComponent(room.id)}`);
+    }
+  };
+
+  // Validate password and join private room
+  const handleJoinPrivateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedJoinRoom) return;
+
+    setJoinError(null);
+    const secret = joinPassword.trim();
+    if (!secret) {
+      setJoinError("秘密の言葉を入力してください。");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getApiUrl()}/api/rooms/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedJoinRoom.id,
+          secretWord: secret,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setJoinError(data.error || "秘密の言葉が違います。");
+        return;
+      }
+
+      setIsJoinPasswordOpen(false);
+      router.push(`?room=${encodeURIComponent(selectedJoinRoom.id)}&secret=${encodeURIComponent(secret)}`);
+    } catch (err) {
+      console.error(err);
+      setJoinError("サーバーとの通信に失敗しました。");
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    router.push("/");
+  };
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-black min-h-screen text-[#83769c] font-mono select-none">
+        <span className="pixel-blink">▒ BOOTING RETRO AUDIO MODULES… ▒</span>
+      </div>
+    );
+  }
+
+  // Render DAW Editor when inside a room
+  if (roomId) {
+    return (
+      <main className="flex flex-1 flex-col py-6 px-4 bg-black select-none custom-grid min-h-screen">
+        <DawEditor
+          roomId={roomId}
+          username={username || "Player"}
+          userId={userId}
+          secretWord={secretWordFromUrl}
+          onLeave={handleLeaveRoom}
+        />
+      </main>
+    );
+  }
+
+  // Render Lobby view
+  return (
+    <main className="flex flex-1 flex-col py-8 px-4 bg-black select-none custom-grid min-h-screen">
+      <div className="w-full max-w-4xl mx-auto flex flex-col gap-6">
+        
+        {/* Retro Header Banner */}
+        <header className="pixel-border p-5 text-center flex flex-col items-center justify-center gap-2 pixel-border-cyan">
+          <h1 className="pixel-title text-xl md:text-3xl font-bold tracking-widest text-[#29adff] select-none uppercase">
+            ♪ DTM COLLAB STUDIO ♪
+          </h1>
+          <p className="text-2xs md:text-xs text-[#ff77a8] tracking-widest uppercase select-none">
+            マルチプレイピコピコ音楽室 ・ モバイルファーストDAW
+          </p>
+        </header>
+
+        {/* Unreachable Server Alert */}
+        {apiError && (
+          <div className="bg-[#ff004d] text-white p-4 border-4 border-black shadow-[4px_4px_0_#000] font-bold text-xs md:text-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-center sm:text-left">⚠️ {apiError}</span>
+            <button 
+              onClick={() => setRefreshTrigger(p => p + 1)}
+              className="pixel-btn pixel-btn-cyan text-xs py-1 px-3 flex-shrink-0"
+            >
+              再接続を試みる
+            </button>
+          </div>
+        )}
+
+        {/* User profile selection */}
+        <section className="pixel-border p-4 bg-[#1d2b53] pixel-border-yellow flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-[#ffec27] font-bold tracking-wider">
+              ▒ アバター名設定
+            </span>
+            <span className="text-2xs text-[#83769c]">
+              作曲時に他のプレイヤーに表示される名前です。
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-white font-mono select-none">@</span>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              placeholder="なまえを入力..."
+              maxLength={15}
+              className="pixel-input text-xs w-[180px]"
+            />
+          </div>
+        </section>
+
+        {/* Rooms Grid */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Public Rooms Column */}
+          <div className="pixel-border p-4 flex flex-col gap-4 pixel-border-cyan bg-[#1d2b53]">
+            <div className="flex items-center justify-between border-b-2 border-[#5f574f] pb-2">
+              <span className="font-bold text-[#29adff] text-sm tracking-wider">
+                🌏 公開音楽室 (誰でも参加可能)
+              </span>
+              <button
+                onClick={() => {
+                  setCreatePrivate(false);
+                  setIsCreateOpen(true);
+                }}
+                className="pixel-btn pixel-btn-cyan text-xs py-1"
+              >
+                + 新規作成
+              </button>
+            </div>
+
+            {/* Scrollable list */}
+            <div className="flex flex-col gap-3 min-h-[220px] max-h-[350px] overflow-y-auto pr-1">
+              {isLoadingRooms && (
+                <div className="text-xs text-[#83769c] text-center py-10 pixel-blink">
+                  ▒ ルーム情報を読み込み中…
+                </div>
+              )}
+
+              {!isLoadingRooms && roomsList.filter(r => !r.isPrivate).length === 0 && (
+                <div className="text-2xs text-[#83769c] text-center py-12 italic">
+                  公開中の音楽室はありません。
+                  <br />「新規作成」から新しく部屋を作りましょう！
+                </div>
+              )}
+
+              {roomsList.filter(r => !r.isPrivate).map((room) => (
+                <div
+                  key={room.id}
+                  className="bg-black/30 border-2 border-black p-3 flex items-center justify-between hover:bg-black/50 transition-colors"
+                >
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="font-bold text-white text-xs truncate">
+                      {room.name}
+                    </span>
+                    <span className="text-[10px] text-[#83769c]">
+                      ID: {room.id}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-[10px] text-[#00e436] bg-[#00e436]/10 px-1.5 border border-[#00e436]">
+                      {room.playerCount} 人 演奏中
+                    </span>
+                    <button
+                      onClick={() => handleJoinClick(room)}
+                      className="pixel-btn pixel-btn-cyan text-xs py-1 px-3"
+                    >
+                      入室
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Private Rooms Column */}
+          <div className="pixel-border p-4 flex flex-col gap-4 pixel-border-pink bg-[#1d2b53]">
+            <div className="flex items-center justify-between border-b-2 border-[#5f574f] pb-2">
+              <span className="font-bold text-[#ff77a8] text-sm tracking-wider">
+                🔒 限定音楽室 (秘密の言葉が必要)
+              </span>
+              <button
+                onClick={() => {
+                  setCreatePrivate(true);
+                  setIsCreateOpen(true);
+                }}
+                className="pixel-btn pixel-btn-pink text-xs py-1"
+              >
+                + 新規作成
+              </button>
+            </div>
+
+            {/* Scrollable list */}
+            <div className="flex flex-col gap-3 min-h-[220px] max-h-[350px] overflow-y-auto pr-1">
+              {isLoadingRooms && (
+                <div className="text-xs text-[#83769c] text-center py-10 pixel-blink">
+                  ▒ ルーム情報を読み込み中…
+                </div>
+              )}
+
+              {!isLoadingRooms && roomsList.filter(r => r.isPrivate).length === 0 && (
+                <div className="text-2xs text-[#83769c] text-center py-12 italic">
+                  プライベート音楽室はありません。
+                  <br />秘密の合言葉を決めて部屋を作成できます。
+                </div>
+              )}
+
+              {roomsList.filter(r => r.isPrivate).map((room) => (
+                <div
+                  key={room.id}
+                  className="bg-black/30 border-2 border-black p-3 flex items-center justify-between hover:bg-black/50 transition-colors"
+                >
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="font-bold text-white text-xs truncate flex items-center gap-1.5">
+                      🔒 {room.name}
+                    </span>
+                    <span className="text-[10px] text-[#83769c]">
+                      ID: {room.id}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-[10px] text-[#ff77a8] bg-[#ff77a8]/10 px-1.5 border border-[#ff77a8]">
+                      {room.playerCount} 人
+                    </span>
+                    <button
+                      onClick={() => handleJoinClick(room)}
+                      className="pixel-btn pixel-btn-pink text-xs py-1 px-3"
+                    >
+                      鍵解除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </section>
+
+        {/* Footer Credit */}
+        <footer className="text-center text-[11px] text-[#5f574f] tracking-widest mt-4">
+          <span>♪ @onjmin/dtm ENGINE POWERED</span>
+          <button 
+            onClick={() => setRefreshTrigger(p => p + 1)}
+            className="ml-4 pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
+          >
+            ↻ リロード
+          </button>
+        </footer>
+
+      </div>
+
+      {/* CREATE ROOM MODAL */}
+      <PixelModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title={createPrivate ? "限定部屋を作る" : "公開部屋を作る"}
+      >
+        <form onSubmit={handleCreateRoom} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#ffec27] font-bold">音楽室名</label>
+            <input
+              type="text"
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              placeholder="例: ピコピコジャムセッション"
+              maxLength={30}
+              className="pixel-input text-xs"
+              required
+            />
+          </div>
+
+          <div className="flex items-center gap-3 py-1">
+            <input
+              type="checkbox"
+              id="is_private"
+              checked={createPrivate}
+              onChange={(e) => setCreatePrivate(e.target.checked)}
+              className="w-4 h-4 accent-[#ff77a8] bg-black border-2 border-black outline-none"
+            />
+            <label htmlFor="is_private" className="text-xs text-white font-bold cursor-pointer select-none">
+              プライベート部屋にする (秘密の言葉が必要)
+            </label>
+          </div>
+
+          {createPrivate && (
+            <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-100">
+              <label className="text-xs text-[#ff77a8] font-bold">秘密の言葉</label>
+              <input
+                type="text"
+                value={createSecretWord}
+                onChange={(e) => setCreateSecretWord(e.target.value)}
+                placeholder="例: password123"
+                maxLength={20}
+                className="pixel-input text-xs"
+                required={createPrivate}
+              />
+            </div>
+          )}
+
+          {createError && (
+            <div className="text-2xs text-[#ff004d] font-bold py-1">
+              ⚠ {createError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(false)}
+              className="pixel-btn text-xs"
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              className={`pixel-btn text-xs ${createPrivate ? 'pixel-btn-pink' : 'pixel-btn-cyan'}`}
+            >
+              作成して入室
+            </button>
+          </div>
+        </form>
+      </PixelModal>
+
+      {/* JOIN PASSWORD PROMPT MODAL */}
+      <PixelModal
+        isOpen={isJoinPasswordOpen}
+        onClose={() => setIsJoinPasswordOpen(false)}
+        title="秘密の言葉を入力"
+      >
+        <form onSubmit={handleJoinPrivateSubmit} className="flex flex-col gap-4">
+          <div className="text-2xs text-[#83769c] select-none">
+            部屋「{selectedJoinRoom?.name}」は鍵がかかっています。<br />
+            入室するために「秘密の言葉」を入力してください。
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#ff77a8] font-bold">秘密の言葉</label>
+            <input
+              type="text"
+              value={joinPassword}
+              onChange={(e) => setJoinPassword(e.target.value)}
+              placeholder="秘密の言葉を入力..."
+              maxLength={20}
+              className="pixel-input text-xs"
+              required
+              autoFocus
+            />
+          </div>
+
+          {joinError && (
+            <div className="text-2xs text-[#ff004d] font-bold py-1">
+              ⚠ {joinError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setIsJoinPasswordOpen(false)}
+              className="pixel-btn text-xs"
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              className="pixel-btn pixel-btn-pink text-xs"
+            >
+              合言葉を送信
+            </button>
+          </div>
+        </form>
+      </PixelModal>
+    </main>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <Suspense fallback={
+      <div className="flex flex-1 items-center justify-center bg-black min-h-screen text-[#83769c] font-mono select-none">
+        <span className="pixel-blink">▒ LOADING APP LOBBY… ▒</span>
+      </div>
+    }>
+      <AppContent />
+    </Suspense>
   );
 }
