@@ -336,7 +336,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       // Listen to BPM changes on the input element
       const bpmInput = dawContainerRef.current?.querySelector('[data-dtm="bpm"]');
       if (bpmInput) {
-        bpmInput.addEventListener("input", () => {
+        bpmInput.addEventListener("change", () => {
           const newBpm = Number.parseInt((bpmInput as HTMLInputElement).value, 10);
           if (newBpm && !isNaN(newBpm)) {
             if (userId === roomCreatorId) {
@@ -345,6 +345,19 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
               }
             }
           }
+        });
+      }
+
+      // Ensure lyrics reach the server when the user leaves the textarea.
+      // The library fires onLyricsChange via a 300ms-debounced "input" listener;
+      // dispatching "input" on "change" (blur) guarantees that final value is sent
+      // even if the user stops typing and immediately switches tracks or tabs out.
+      if (dawContainerRef.current) {
+        const lyricInputs = dawContainerRef.current.querySelectorAll<HTMLTextAreaElement>('[data-dtm="lyric-input"]');
+        lyricInputs.forEach((lyricInput) => {
+          lyricInput.addEventListener("change", () => {
+            lyricInput.dispatchEvent(new Event("input", { bubbles: true }));
+          });
         });
       }
 
