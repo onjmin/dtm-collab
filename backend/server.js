@@ -104,6 +104,14 @@ const initDbWithRetry = async (retries = 8, delay = 2500) => {
                 );
                 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS creator_id VARCHAR(50);
                 CREATE INDEX IF NOT EXISTS idx_rooms_updated_at ON rooms (updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id BIGSERIAL PRIMARY KEY,
+                    body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 1000),
+                    user_id TEXT,
+                    username TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
             `);
             console.log('[backend] Database schema checked/created successfully.');
             dbReady = true; // DB is initialized and ready
@@ -313,6 +321,66 @@ app.post('/api/rooms/join', async (req, res) => {
     } catch (err) {
         console.error('[backend] Failed to validate room join:', err);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ─── Feedback endpoints ──────────────────────────────────────
+
+const FEEDBACK_PAGE_SIZE = 20;
+
+// Submit feedback
+app.post('/api/feedback', async (req, res) => {
+    const { body, userId, username } = req.body;
+
+    if (!body || typeof body !== 'string' || body.trim().length === 0) {
+        return res.status(400).json({ error: '内容を入力してください。' });
+    }
+    const trimmed = body.trim().slice(0, 1000);
+
+    if (!pool || !dbReady) {
+        return res.status(503).json({ error: 'DB未接続のため送信できません。' });
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO feedback (body, user_id, username) VALUES ($1, $2, $3)`,
+            [trimmed, userId ?? null, username ?? null]
+        );
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('[backend] Failed to insert feedback:', err);
+        res.status(500).json({ error: '送信に失敗しました。' });
+    }
+});
+
+// List feedback (paginated)
+app.get('/api/feedback', async (req, res) => {
+    if (!pool || !dbReady) {
+        return res.status(503).json({ error: 'DB未接続です。' });
+    }
+
+    const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
+    const offset = (page - 1) * FEEDBACK_PAGE_SIZE;
+
+    try {
+        const [rows, countResult] = await Promise.all([
+            pool.query(
+                `SELECT id, body, username, created_at FROM feedback ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+                [FEEDBACK_PAGE_SIZE, offset]
+            ),
+            pool.query(`SELECT COUNT(*)::int AS total FROM feedback`),
+        ]);
+
+        const total = countResult.rows[0].total;
+        res.json({
+            items: rows.rows,
+            total,
+            page,
+            totalPages: Math.max(1, Math.ceil(total / FEEDBACK_PAGE_SIZE)),
+        });
+    } catch (err) {
+        console.error('[backend] Failed to fetch feedback:', err);
+        res.status(500).json({ error: '取得に失敗しました。' });
     }
 });
 

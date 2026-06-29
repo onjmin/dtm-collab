@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import PixelModal from "./PixelModal";
+import { getBackendUrl } from "../../lib/api";
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export default function FeedbackModal({ isOpen, onClose, userId, username }: Fee
     setErrorMsg("");
 
     try {
-      const res = await fetch("/api/feedback", {
+      const res = await fetch(`${getBackendUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body, userId, username }),

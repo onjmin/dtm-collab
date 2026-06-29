@@ -555,19 +555,19 @@ function AppContent() {
             onClick={() => setRefreshTrigger(p => p + 1)}
             className="pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
           >
-            ↻ リロード
+            リロード
           </button>
           <button
             onClick={() => setIsFeedbackOpen(true)}
             className="pixel-btn pixel-btn-yellow text-[9px] py-0.5 px-2"
           >
-            📬 目安箱
+            目安箱
           </button>
           <a
             href="/feedback"
             className="pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
           >
-            📋 投稿一覧
+            要望一覧
           </a>
         </footer>
 

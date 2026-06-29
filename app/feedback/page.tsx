@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { getBackendUrl } from "../../lib/api";
 
 interface FeedbackItem {
   id: number;
@@ -45,7 +46,7 @@ export default function FeedbackListPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/feedback?page=${p}`);
+      const res = await fetch(`${getBackendUrl()}/api/feedback?page=${p}`);
       if (!res.ok) throw new Error("取得に失敗しました");
       setData(await res.json());
     } catch (e) {

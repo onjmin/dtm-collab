@@ -51,6 +51,11 @@ jobs:
           cd dtm-collab
           pnpm run build
 
+      - name: Copy sound assets and add .nojekyll
+        run: |
+          cp -r dtm-collab/public/sounds dtm-collab/out/sounds
+          touch dtm-collab/out/.nojekyll
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
