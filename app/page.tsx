@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PixelModal from "./components/PixelModal";
 import FeedbackModal from "./components/FeedbackModal";
+import FeedbackListModal from "./components/FeedbackListModal";
 import DawEditor from "./components/DawEditor";
 
 interface RoomItem {
@@ -48,6 +49,7 @@ function AppContent() {
 
   // Feedback States
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isFeedbackListOpen, setIsFeedbackListOpen] = useState(false);
 
   // Pagination States
   const [publicPage, setPublicPage] = useState(1);
@@ -563,12 +565,12 @@ function AppContent() {
           >
             目安箱
           </button>
-          <a
-            href="/feedback"
+          <button
+            onClick={() => setIsFeedbackListOpen(true)}
             className="pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
           >
             要望一覧
-          </a>
+          </button>
         </footer>
 
       </div>
@@ -652,6 +654,12 @@ function AppContent() {
         onClose={() => setIsFeedbackOpen(false)}
         userId={userId}
         username={username}
+      />
+
+      {/* FEEDBACK LIST MODAL */}
+      <FeedbackListModal
+        isOpen={isFeedbackListOpen}
+        onClose={() => setIsFeedbackListOpen(false)}
       />
 
       {/* JOIN PASSWORD PROMPT MODAL */}

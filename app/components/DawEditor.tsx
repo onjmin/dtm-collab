@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { DawInstance, NoteData, NoteRemove } from "@onjmin/dtm";
+import type { DawInstance, DtmStudio, NoteData, NoteRemove } from "@onjmin/dtm";
 import PixelModal from "./PixelModal";
 
 const EMOTE_DEFS = [
@@ -84,10 +84,11 @@ interface DawEditorProps {
 
 export default function DawEditor({ roomId, username, userId, secretWord = "", onLeave }: DawEditorProps) {
   const dawContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // WebSocket and DAW refs
   const wsRef = useRef<WebSocket | null>(null);
   const dawRef = useRef<DawInstance | null>(null);
+  const studioRef = useRef<DtmStudio | null>(null);
 
 
   // React States
@@ -114,6 +115,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const lastReadTsRef = useRef<number>(0);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [trackIndexToClear, setTrackIndexToClear] = useState<number>(-1);
+  const [isDisconnectedModalOpen, setIsDisconnectedModalOpen] = useState(false);
 
   // Emote system
   interface FloatingEmote { id: number; emoji: string; x: number; }
@@ -300,6 +302,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       const studio = await createDtmStudio({
         features: { midi: isCreator, presetUI: true },
       });
+      studioRef.current = studio;
 
       const trackCount = TRACKS_ADVANCED?.length ?? 15;
       const myTrackId = TRACK_IDS[initialTrackIdx] ?? TRACK_IDS[0];
@@ -341,6 +344,16 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         onInstrumentChange: !isCreator ? undefined : (instrumentName) => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: "instrument", instrumentName }));
+          }
+          const daw = dawRef.current;
+          const wasPlaying = daw?.getPlaybackState() === "playing";
+          if (wasPlaying && studioRef.current) {
+            daw!.pause();
+            studioRef.current.loadPreset(instrumentName).then(() => {
+              if (dawRef.current?.getPlaybackState() === "paused") dawRef.current.play();
+            }).catch(() => {
+              if (dawRef.current?.getPlaybackState() === "paused") dawRef.current.play();
+            });
           }
         },
         onDrumChange: (spectatorMode && !isCreator) ? undefined : (drumName) => {
@@ -735,6 +748,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         setErrorMessage("この部屋からキックされたため、再入室にはクールダウン（1分間）が必要です。しばらくお待ちください。");
       } else {
         setRelayStatusMsg("切断されました");
+        setIsDisconnectedModalOpen(true);
       }
     };
 
@@ -751,6 +765,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         dawRef.current.destroy();
         dawRef.current = null;
       }
+      studioRef.current = null;
       setIsDawReady(false);
       if (arrowLeftTimer.current) clearTimeout(arrowLeftTimer.current);
       if (arrowRightTimer.current) clearTimeout(arrowRightTimer.current);
@@ -1289,6 +1304,38 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
               className="pixel-btn pixel-btn-red text-xs"
             >
               消去する
+            </button>
+          </div>
+        </div>
+      </PixelModal>
+      {/* DISCONNECTED MODAL */}
+      <PixelModal
+        isOpen={isDisconnectedModalOpen}
+        onClose={() => setIsDisconnectedModalOpen(false)}
+        title="サーバーから切断されました"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="text-xs text-[#ff004d] font-bold select-none">
+            ⚠️ サーバーとの接続が切れました。
+          </div>
+          <div className="text-2xs text-[#83769c] leading-relaxed select-none">
+            ネットワークの問題やサーバーの再起動が原因の可能性があります。<br />
+            ロビーに戻って再度入室してください。
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setIsDisconnectedModalOpen(false)}
+              className="pixel-btn text-xs"
+            >
+              閉じる
+            </button>
+            <button
+              type="button"
+              onClick={onLeave}
+              className="pixel-btn pixel-btn-cyan text-xs"
+            >
+              🚪 ロビーへ戻る
             </button>
           </div>
         </div>
