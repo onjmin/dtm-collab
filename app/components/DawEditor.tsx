@@ -100,114 +100,43 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
   const EMOTE_DEFS = [
     { id: '👏', label: '拍手' },
-    { id: '🎉', label: '歓声' },
-    { id: '🔥', label: '盛り上がれ' },
-    { id: '😂', label: '笑い' },
-    { id: '💯', label: 'ブラボー' },
+    { id: '🫰', label: '指パッチン' },
+    { id: '🐚', label: '法螺貝' },
+    { id: '🪘', label: '拍子木' },
+    { id: '🥁', label: '和太鼓' },
+    { id: '🎵', label: '小鼓' },
+    { id: '💪', label: 'オウ！' },
   ];
 
+  const EMOTE_SOUNDS: Record<string, string> = {
+    '👏': '/sounds/Applause01-7(Random-Short-Slow).mp3',
+    '🫰': '/sounds/Finger_Snap-Foley06-1(Dry).mp3',
+    '🐚': '/sounds/Horagai01-5.mp3',
+    '🪘': '/sounds/Hyoshigi03-1.mp3',
+    '🥁': '/sounds/和太鼓でドン.mp3',
+    '🎵': '/sounds/小鼓（こつづみ）.mp3',
+    '💪': '/sounds/男衆「オウ！」.mp3',
+  };
+
+  const emoteAudioRef = useRef<Record<string, HTMLAudioElement>>({});
+
+  useEffect(() => {
+    const loaded: Record<string, HTMLAudioElement> = {};
+    for (const [emoji, src] of Object.entries(EMOTE_SOUNDS)) {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+      audio.volume = 0.7;
+      loaded[emoji] = audio;
+    }
+    emoteAudioRef.current = loaded;
+  }, []);
+
   const playEmoteSound = (emoteId: string) => {
+    const audio = emoteAudioRef.current[emoteId];
+    if (!audio) return;
     try {
-      const ctx = new AudioContext();
-      const now = ctx.currentTime;
-      switch (emoteId) {
-        case '👏': {
-          // Clapping: bursts of filtered noise
-          for (let i = 0; i < 4; i++) {
-            const buf = ctx.createBuffer(1, ctx.sampleRate * 0.07, ctx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1);
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            const gain = ctx.createGain();
-            const t = now + i * 0.18;
-            gain.gain.setValueAtTime(0.4, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-            src.connect(gain);
-            gain.connect(ctx.destination);
-            src.start(t);
-          }
-          break;
-        }
-        case '🎉': {
-          // Pop + ascending glide
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(200, now);
-          osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
-          gain.gain.setValueAtTime(0.3, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.4);
-          break;
-        }
-        case '🔥': {
-          // Rising noise swell
-          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
-          const data = buf.getChannelData(0);
-          for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1);
-          const src = ctx.createBufferSource();
-          src.buffer = buf;
-          const filter = ctx.createBiquadFilter();
-          filter.type = 'bandpass';
-          filter.frequency.setValueAtTime(400, now);
-          filter.frequency.exponentialRampToValueAtTime(2000, now + 0.5);
-          const gain = ctx.createGain();
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.4, now + 0.2);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-          src.connect(filter);
-          filter.connect(gain);
-          gain.connect(ctx.destination);
-          src.start(now);
-          break;
-        }
-        case '😂': {
-          // Wobbling laugh tone
-          const osc = ctx.createOscillator();
-          const lfo = ctx.createOscillator();
-          const lfoGain = ctx.createGain();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = 300;
-          lfo.type = 'sine';
-          lfo.frequency.value = 7;
-          lfoGain.gain.value = 40;
-          gain.gain.setValueAtTime(0.3, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-          lfo.connect(lfoGain);
-          lfoGain.connect(osc.frequency);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          lfo.start(now);
-          osc.start(now);
-          osc.stop(now + 0.6);
-          lfo.stop(now + 0.6);
-          break;
-        }
-        case '💯': {
-          // Three-note fanfare
-          const notes = [523, 659, 784];
-          notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.value = freq;
-            const t = now + i * 0.12;
-            gain.gain.setValueAtTime(0.2, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(t);
-            osc.stop(t + 0.2);
-          });
-          break;
-        }
-      }
-      setTimeout(() => ctx.close(), 2000);
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     } catch {}
   };
 
@@ -374,6 +303,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
       const daw = studio.mountEditor(dawContainerRef.current, {
         mode: "advanced",
+        preset: pendingInstrument.current || undefined,
         tracks: TRACKS_ADVANCED,
         lockedTracks,
         initialActiveTrack: (spectatorMode && !isCreator) ? TRACK_IDS[0] : myTrackId,
@@ -427,38 +357,32 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       }
       pendingInstruments.current.clear();
 
+      pendingInstrument.current = "";
+
       // Intercept the preset select UI directly, because onInstrumentChange only fires on MML load,
       // not on user interaction with the preset select element.
-      // Also apply the initial instrument: use the server-provided value if set,
-      // otherwise fall back to the select's current value (handles グランドピアノ default).
-      if (dawContainerRef.current) {
+      if (isCreator && dawContainerRef.current) {
         const controlbars = dawContainerRef.current.querySelectorAll(".dtm-controlbar");
         for (const bar of controlbars) {
           const label = bar.querySelector(".dtm-controlbar-label");
-          if (label?.textContent === "楽器プリセット") {
+          if (label?.textContent?.includes("楽器プリセット")) {
             const sel = bar.querySelector("select") as HTMLSelectElement | null;
             if (sel) {
-              const instrumentToApply = pendingInstrument.current || sel.value;
-              if (instrumentToApply) {
-                daw.setInstrument(instrumentToApply);
+              // Sync the library's initial preset to server if the server has no stored value.
+              // This ensures グランドピアノ (or whatever the default is) is broadcast to late-joiners.
+              if (sel.value && wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ type: "instrument", instrumentName: sel.value }));
               }
-              if (isCreator) {
-                // Sync initial value to server so late-joining users receive the correct preset
-                if (!pendingInstrument.current && sel.value && wsRef.current?.readyState === WebSocket.OPEN) {
+              sel.addEventListener("change", () => {
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
                   wsRef.current.send(JSON.stringify({ type: "instrument", instrumentName: sel.value }));
                 }
-                sel.addEventListener("change", () => {
-                  if (wsRef.current?.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(JSON.stringify({ type: "instrument", instrumentName: sel.value }));
-                  }
-                });
-              }
+              });
             }
             break;
           }
         }
       }
-      pendingInstrument.current = "";
 
       for (const [trackId, lyricsData] of pendingLyrics.current.entries()) {
         daw.applyLyrics(trackId, lyricsData);
@@ -1145,15 +1069,15 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                 )}
 
                 {/* Emote buttons */}
-                <div className="flex items-center gap-1.5 border-t-2 border-black pt-2">
-                  <span className="text-3xs text-[#83769c] select-none whitespace-nowrap">エモート:</span>
+                <div className="flex items-center gap-1 border-t-2 border-black pt-2">
                   {EMOTE_DEFS.map(({ id, label }) => (
                     <button
                       key={id}
                       type="button"
                       onClick={() => sendEmote(id)}
                       title={label}
-                      className="pixel-btn text-base py-0.5 px-2 leading-none"
+                      className="pixel-btn text-base leading-none"
+                      style={{ width: '2.2em', height: '2.2em', padding: 0 }}
                     >
                       {id}
                     </button>

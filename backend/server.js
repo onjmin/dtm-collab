@@ -965,13 +965,13 @@ wss.on('connection', async (ws, request) => {
                 const user = room.users.get(userId);
                 if (!user) return;
 
-                const VALID_EMOTES = ['👏', '🎉', '🔥', '😂', '💯'];
+                const VALID_EMOTES = ['👏', '🫰', '🐚', '🪘', '🥁', '🎵', '💪'];
                 const emoteId = msg.emoteId;
                 if (!VALID_EMOTES.includes(emoteId)) return;
 
                 const now = Date.now();
                 // Rate limit: 3 seconds per emote
-                if (now - (user.lastEmoteTime ?? 0) < 3000) return;
+                if (now - (user.lastEmoteTime ?? 0) < 300) return;
                 user.lastEmoteTime = now;
 
                 broadcast(room, {
