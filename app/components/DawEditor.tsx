@@ -108,6 +108,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const pendingInstruments = useRef<Map<number, string>>(new Map());
   const pendingLyrics = useRef<Map<string, any>>(new Map());
   const pendingBpm = useRef<number>(120);
+  const pendingDrum = useRef<string>("none");
 
   // handle user kick event
   const handleKickUser = (targetUserId: string) => {
@@ -259,6 +260,13 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             wsRef.current.send(JSON.stringify({ type: "track-instrument", trackIndex: tIdx, instrumentName }));
           }
         },
+        onDrumChange: (spectatorMode && !isCreator) ? undefined : (drumName) => {
+          if (userId === roomCreatorId) {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: "drum", drum: drumName }));
+            }
+          }
+        },
       });
 
       dawRef.current = daw;
@@ -289,6 +297,10 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
       if (pendingBpm.current) {
         daw.setBpm(pendingBpm.current);
+      }
+
+      if (pendingDrum.current) {
+        daw.setDrum(pendingDrum.current);
       }
 
       // Listen to BPM changes on the input element
@@ -355,6 +367,9 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           }
           if (msg.bpm) {
             pendingBpm.current = msg.bpm;
+          }
+          if (msg.drum) {
+            pendingDrum.current = msg.drum;
           }
 
           // Populate own user card
@@ -464,6 +479,15 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             pendingBpm.current = msg.bpm ?? 120;
           } else if (msg.bpm != null) {
             dawRef.current.setBpm(msg.bpm);
+          }
+          break;
+        }
+
+        case "drum": {
+          if (!dawRef.current) {
+            pendingDrum.current = msg.drum ?? "none";
+          } else if (msg.drum != null) {
+            dawRef.current.setDrum(msg.drum);
           }
           break;
         }

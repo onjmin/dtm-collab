@@ -242,6 +242,7 @@ app.post('/api/rooms', async (req, res) => {
             secretWord: cleanSecretWord,
             creatorId: creatorId || null,
             bpm: 120, // Default BPM
+            drum: 'none', // Default drum pattern
             users: new Map(),
             trackNotes: new Map(),
             trackLyrics: new Map(),
@@ -341,9 +342,9 @@ const loadRoomToMemory = async (roomId) => {
 
         if (rows.length === 0) return null;
 
-        const row = rows[0];
         const rawNotes = row.track_notes || {};
         const bpm = rawNotes.bpm || 120;
+        const drum = rawNotes.drum || 'none';
 
         const trackNotes = new Map();
         if (rawNotes.trackNotes) {
@@ -372,6 +373,7 @@ const loadRoomToMemory = async (roomId) => {
             secretWord: row.secret_word,
             creatorId: row.creator_id,
             bpm,
+            drum,
             users: new Map(),
             trackNotes,
             trackLyrics,
@@ -398,6 +400,7 @@ const saveRoomToDb = async (roomId) => {
         // Prepare JSONB structure
         const rawNotes = {
             bpm: room.bpm || 120,
+            drum: room.drum || 'none',
             trackNotes: {},
             trackLyrics: {},
             trackInstruments: {}
@@ -593,6 +596,7 @@ wss.on('connection', async (ws, request) => {
         creatorId: room.creatorId,
         roomName: room.name,
         bpm: room.bpm || 120,
+        drum: room.drum || 'none',
         nextReset: 0 // We don't force hourly resets, DB is permanent
     }));
 
@@ -862,6 +866,30 @@ wss.on('connection', async (ws, request) => {
                     broadcast(room, {
                         type: 'bpm',
                         bpm: msg.bpm
+                    }, userId);
+
+                    // Queue save to DB
+                    queueSave(roomId);
+                }
+                break;
+            }
+
+            case 'drum': {
+                const user = room.users.get(userId);
+                if (!user) return;
+
+                // Security restriction: Only the room creator (owner) can sync drum changes
+                if (room.creatorId && userId !== room.creatorId) {
+                    console.log(`[backend] Blocked unauthorized drum sync from user ${userId} in room ${roomId}`);
+                    return;
+                }
+
+                if (typeof msg.drum === 'string') {
+                    room.drum = msg.drum;
+
+                    broadcast(room, {
+                        type: 'drum',
+                        drum: msg.drum
                     }, userId);
 
                     // Queue save to DB
