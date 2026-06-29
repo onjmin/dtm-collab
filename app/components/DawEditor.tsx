@@ -946,7 +946,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             </div>
             
             {/* DTM Mounting container */}
-            <div className="flex-1 bg-black overflow-hidden flex flex-col relative">
+            <div className="flex-1 bg-black overflow-visible flex flex-col relative">
               {!isDawReady && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black text-[#83769c] z-30 select-none">
                   <span className="pixel-blink text-sm font-mono">▒ INITIALIZING SESSION… ▒</span>
