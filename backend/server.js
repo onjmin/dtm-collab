@@ -786,8 +786,9 @@ wss.on('connection', async (ws, request) => {
 
                 let censoredData = msg.data;
                 if (censoredData && typeof censoredData === 'object') {
-                    if (typeof censoredData.text === 'string') {
-                        censoredData = { ...censoredData, text: censorText(censoredData.text) };
+                    // LyricSyncData uses the key "lyrics" (not "text")
+                    if (typeof censoredData.lyrics === 'string') {
+                        censoredData = { ...censoredData, lyrics: censorText(censoredData.lyrics) };
                     }
                 } else if (typeof censoredData === 'string') {
                     censoredData = censorText(censoredData);
@@ -957,6 +958,29 @@ wss.on('connection', async (ws, request) => {
                     // Remove from active list
                     room.users.delete(targetUserId);
                 }
+                break;
+            }
+
+            case 'emote': {
+                const user = room.users.get(userId);
+                if (!user) return;
+
+                const VALID_EMOTES = ['👏', '🎉', '🔥', '😂', '💯'];
+                const emoteId = msg.emoteId;
+                if (!VALID_EMOTES.includes(emoteId)) return;
+
+                const now = Date.now();
+                // Rate limit: 3 seconds per emote
+                if (now - (user.lastEmoteTime ?? 0) < 3000) return;
+                user.lastEmoteTime = now;
+
+                broadcast(room, {
+                    type: 'emote',
+                    userId,
+                    username: user.username,
+                    trackIndex: user.trackIndex,
+                    emoteId,
+                });
                 break;
             }
 
