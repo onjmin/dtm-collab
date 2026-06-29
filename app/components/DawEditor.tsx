@@ -216,13 +216,14 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       const DTM = await import("@onjmin/dtm");
       const { createDtmStudio, TRACKS_ADVANCED } = DTM;
 
+      const isCreator = userId === roomCreatorId;
+
       const studio = await createDtmStudio({
-        features: { midi: false, presetUI: true },
+        features: { midi: isCreator, presetUI: true },
       });
 
       const trackCount = TRACKS_ADVANCED?.length ?? 15;
       const myTrackId = TRACK_IDS[initialTrackIdx] ?? TRACK_IDS[0];
-      const isCreator = userId === roomCreatorId;
 
       // Lock other tracks if not spectator, lock all if spectator.
       // However, if the user is the room creator/moderator, they can edit any track, so lockedTracks is empty.
