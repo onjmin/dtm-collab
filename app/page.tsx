@@ -293,14 +293,50 @@ function AppContent() {
     <main className="flex flex-1 flex-col py-8 px-4 select-none custom-grid min-h-screen">
       <div className="w-full max-w-4xl mx-auto flex flex-col gap-6">
         
-        {/* Retro Header Banner */}
-        <header className="pixel-border p-5 text-center flex flex-col items-center justify-center gap-2 pixel-border-cyan">
-          <h1 className="pixel-title text-xl md:text-3xl font-bold tracking-widest text-[#29adff] select-none uppercase">
-            ♪ DTMコラボ ♪
-          </h1>
-          <p className="text-2xs md:text-xs text-[#ff77a8] tracking-widest uppercase select-none font-mono">
-            COLLABORATIVE CHIPTUNE STUDIO
+        {/* HERO: 単一の主CTA + 信頼シグナル (ファーストビューで意思決定を完結させる) */}
+        <header className="pixel-border p-6 md:p-8 text-center flex flex-col items-center justify-center gap-4 pixel-border-cyan">
+          <div className="flex flex-col items-center gap-1.5">
+            <h1 className="pixel-title text-2xl md:text-4xl font-bold tracking-widest text-[#29adff] select-none uppercase">
+              ♪ DTMコラボ ♪
+            </h1>
+            <p className="text-2xs md:text-xs text-[#ff77a8] tracking-widest uppercase select-none font-mono">
+              COLLABORATIVE CHIPTUNE STUDIO
+            </p>
+          </div>
+
+          {/* 価値提案 (短く・1文) */}
+          <p className="text-xs md:text-sm text-[#fff1e8] leading-relaxed max-w-xl">
+            ブラウザを開くだけ。離れた仲間と<span className="text-[#ffec27] font-bold">リアルタイムに合奏</span>できる
+            8bitシーケンサー。<span className="text-white font-bold">インストールも会員登録も不要</span>です。
           </p>
+
+          {/* 主CTA (ページ内で最も目立つ唯一の行動) */}
+          <button
+            onClick={() => {
+              setCreatePrivate(false);
+              setIsCreateOpen(true);
+            }}
+            className="pixel-btn pixel-btn-yellow pixel-cta text-sm md:text-base py-3 px-6 mt-1 tracking-wide"
+          >
+            ▶ いますぐ部屋を作って合奏をはじめる
+          </button>
+
+          {/* 信頼シグナル (CTA近傍に配置) */}
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-3xs md:text-2xs font-mono text-[#83769c]">
+            <span>⚡ インストール不要</span>
+            <span className="text-[#5f574f]">|</span>
+            <span>🔗 URL共有だけで参加</span>
+            <span className="text-[#5f574f]">|</span>
+            <span>👥 最大15人で同時合奏</span>
+          </div>
+
+          {/* ライブ社会的証明 (今まさに使われている、を可視化) */}
+          {mounted && !isLoadingRooms && !apiError && roomsList.length > 0 && (
+            <div className="text-2xs font-mono text-[#00e436] flex items-center gap-2 select-none">
+              <span className="pixel-blink">●</span>
+              現在 {roomsList.reduce((sum, r) => sum + r.playerCount, 0)} 人 / {roomsList.length} 部屋がセッション中
+            </div>
+          )}
         </header>
 
         {/* Unreachable Server Alert */}
@@ -315,22 +351,6 @@ function AppContent() {
             </button>
           </div>
         )}
-
-        {/* Site Description & Concept */}
-        <section className="pixel-border p-4 bg-[#1d2b53] pixel-border-yellow flex flex-col gap-2.5">
-          <span className="text-xs text-[#ffec27] font-bold tracking-wider">
-            ▒ ABOUT THIS STUDIO
-          </span>
-          <p className="text-2xs md:text-xs text-[#fff1e8] leading-relaxed">
-            ここは、ブラウザを開くだけで、離れた場所にいる誰とでもリアルタイムにピコピコ音楽（8bitシーケンサー）を作れる共同セッションスタジオです。
-            インストールや難しい設定は不要。部屋を作ってURLを共有するだけで、すぐに合奏を始められます。
-          </p>
-          <div className="text-2xs text-[#83769c] border-t-2 border-[#5f574f]/40 pt-2.5 flex flex-col gap-1.5 font-mono">
-            <div>▶ 誰かが置いた音は、全員の画面へ瞬時に同期されます。</div>
-            <div>▶ 同時に最大15人まで、異なるパート（トラック）で合奏可能です。</div>
-            <div>▶ チャットでアイデアを相談しながら、その場で曲を作り上げられます。</div>
-          </div>
-        </section>
 
         {/* User profile selection */}
         <section className="pixel-border p-4 bg-[#1d2b53] flex flex-col md:flex-row md:items-center justify-between gap-4">

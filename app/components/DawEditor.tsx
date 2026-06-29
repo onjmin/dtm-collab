@@ -710,7 +710,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         <div className="flex items-center gap-2">
           <span className={`inline-block w-2.5 h-2.5 rounded-full ${
             relayStatus === "connected" ? "bg-[#00e436] shadow-[0_0_6px_#00e436]" : 
-            relayStatus === "connecting" ? "bg-[#ffec27] animate-pulse" : "bg-[#ff004d]"
+            relayStatus === "connecting" ? "bg-[#ffec27] pixel-blink" : "bg-[#ff004d]"
           }`} />
           <span>サーバー接続: {relayStatusMsg}</span>
         </div>
@@ -825,7 +825,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
               <div className="flex items-center gap-2">
                 <span>{isChatCollapsed ? "▶" : "▼"} セッションチャット</span>
                 {unreadCount > 0 && (
-                  <span className="text-[#ffec27] animate-pulse bg-[#ffec27]/10 px-1.5 border border-[#ffec27] text-3xs font-mono ml-1.5">
+                  <span className="text-[#ffec27] pixel-blink bg-[#ffec27]/10 px-1.5 border border-[#ffec27] text-3xs font-mono ml-1.5">
                     {unreadCount} NEW
                   </span>
                 )}

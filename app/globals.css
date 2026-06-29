@@ -31,14 +31,14 @@ body {
   min-height: 100vh;
 }
 
-/* Smooth active indicators with step-like retro pulse */
+/* Retro indicators: a clean ON/OFF blink (no gradual fade) */
 @keyframes retro-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.15; }
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 
 .pixel-blink {
-  animation: retro-blink 1.2s steps(2) infinite;
+  animation: retro-blink 1s steps(1) infinite;
 }
 
 /* Retro Pixel Art Borders & Panels */
@@ -126,6 +126,29 @@ body {
 .pixel-btn-red:hover {
   background-color: #ff77a8;
   color: #000;
+}
+
+/* Primary CTA: highest-contrast accent to anchor the hero focal point */
+.pixel-btn-yellow {
+  background-color: var(--c-yellow);
+  color: #000;
+}
+.pixel-btn-yellow:hover {
+  background-color: #fff;
+  color: var(--c-navy);
+}
+
+/* Subtle attention pulse for the primary CTA (no AI-glossy glow) */
+@keyframes cta-nudge {
+  0%, 92%, 100% { transform: translate(0, 0); }
+  94%, 98% { transform: translate(0, -2px); }
+  96% { transform: translate(0, 1px); }
+}
+.pixel-cta {
+  animation: cta-nudge 3.6s steps(1) infinite;
+}
+.pixel-cta:hover {
+  animation: none;
 }
 
 /* Pixel Input Styles */
