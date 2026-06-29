@@ -657,20 +657,32 @@ wss.on('connection', async (ws, request) => {
         switch (msg.type) {
             case 'patch': {
                 const user = room.users.get(userId);
-                if (!user || user.trackIndex < 0) return;
+                if (!user) return;
+
+                const isCreator = room.creatorId && userId === room.creatorId;
+                let targetTrackIndex = user.trackIndex;
+                if (isCreator && typeof msg.trackIndex === 'number' && msg.trackIndex >= 0 && msg.trackIndex < 15) {
+                    targetTrackIndex = msg.trackIndex;
+                }
+
+                if (targetTrackIndex < 0) return;
 
                 const added = Array.isArray(msg.added) ? msg.added : [];
                 const removed = Array.isArray(msg.removed) ? msg.removed : [];
 
-                const entry = room.trackNotes.get(user.trackIndex);
-                if (entry) {
-                    entry.notes = applyPatchToNotes(entry.notes, added, removed);
+                let entry = room.trackNotes.get(targetTrackIndex);
+                if (!entry) {
+                    entry = { notes: [], lastUserId: userId, lastUsername: username };
+                    room.trackNotes.set(targetTrackIndex, entry);
                 }
+                entry.notes = applyPatchToNotes(entry.notes, added, removed);
+                entry.lastUserId = userId;
+                entry.lastUsername = username;
 
                 broadcast(room, {
                     type: 'patch',
                     userId,
-                    trackIndex: user.trackIndex,
+                    trackIndex: targetTrackIndex,
                     added,
                     removed
                 }, userId);
@@ -682,13 +694,21 @@ wss.on('connection', async (ws, request) => {
 
             case 'clear-track': {
                 const user = room.users.get(userId);
-                if (!user || user.trackIndex < 0) return;
+                if (!user) return;
 
-                // Only allow users to clear their own track
-                if (msg.trackIndex !== user.trackIndex) return;
+                const isCreator = room.creatorId && userId === room.creatorId;
+                let targetTrackIndex = user.trackIndex;
+                if (isCreator && typeof msg.trackIndex === 'number' && msg.trackIndex >= 0 && msg.trackIndex < 15) {
+                    targetTrackIndex = msg.trackIndex;
+                } else {
+                    // Only allow users to clear their own track
+                    if (msg.trackIndex !== user.trackIndex) return;
+                }
+
+                if (targetTrackIndex < 0) return;
 
                 // Generate removed array for all notes in the track
-                const entry = room.trackNotes.get(user.trackIndex);
+                const entry = room.trackNotes.get(targetTrackIndex);
                 if (entry) {
                     const allNotes = entry.notes;
                     const removed = allNotes.map(n => ({
@@ -696,12 +716,14 @@ wss.on('connection', async (ws, request) => {
                         pitch: n.pitch
                     }));
                     entry.notes = [];
+                    entry.lastUserId = userId;
+                    entry.lastUsername = username;
 
                     // Broadcast the clear as a patch with all notes removed (include sender so their DAW clears too)
                     broadcast(room, {
                         type: 'patch',
                         userId,
-                        trackIndex: user.trackIndex,
+                        trackIndex: targetTrackIndex,
                         added: [],
                         removed
                     });
@@ -715,6 +737,13 @@ wss.on('connection', async (ws, request) => {
             case 'lyrics': {
                 const user = room.users.get(userId);
                 if (!user || user.trackIndex < 0) return;
+
+                const isCreator = room.creatorId && userId === room.creatorId;
+                const expectedTrackId = `t${user.trackIndex}`;
+                if (!isCreator && msg.trackId !== expectedTrackId) {
+                    console.log(`[backend] Blocked unauthorized lyrics edit from user ${userId} in room ${roomId}`);
+                    return;
+                }
 
                 let censoredData = msg.data;
                 if (censoredData && typeof censoredData === 'object') {
@@ -766,12 +795,20 @@ wss.on('connection', async (ws, request) => {
 
             case 'cursor': {
                 const user = room.users.get(userId);
-                if (!user || user.trackIndex < 0) return;
+                if (!user) return;
+
+                const isCreator = room.creatorId && userId === room.creatorId;
+                let targetTrackIndex = user.trackIndex;
+                if (isCreator && typeof msg.trackIndex === 'number' && msg.trackIndex >= 0 && msg.trackIndex < 15) {
+                    targetTrackIndex = msg.trackIndex;
+                }
+
+                if (targetTrackIndex < 0) return;
 
                 broadcast(room, {
                     type: 'cursor',
                     userId,
-                    trackIndex: user.trackIndex,
+                    trackIndex: targetTrackIndex,
                     step: msg.step,
                     pitch: msg.pitch
                 }, userId); // Transient, no DB save needed

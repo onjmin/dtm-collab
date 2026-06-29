@@ -67,7 +67,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   // WebSocket and DAW refs
   const wsRef = useRef<WebSocket | null>(null);
   const dawRef = useRef<DawInstance | null>(null);
-  const userIdRef = useRef<string>(userId);
+
 
   // React States
   const [myTrackIndex, setMyTrackIndex] = useState<number>(-1);
@@ -91,6 +91,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const chatMessagesCountRef = useRef(chatMessages.length);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [trackIndexToClear, setTrackIndexToClear] = useState<number>(-1);
 
   // Offscreen edit arrows
   const [arrowLeftText, setArrowLeftText] = useState("");
@@ -169,11 +170,12 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   // Send edits via WebSocket
   const sendPatch = (trackId: string, added: NoteData[], removed: NoteRemove[]) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "patch", added, removed }));
+      const trackIndex = TRACK_IDS.indexOf(trackId);
+      wsRef.current.send(JSON.stringify({ type: "patch", trackIndex, added, removed }));
       // Send cursor updates based on last modified note
       const ref = added[0] || removed[0];
       if (ref) {
-        wsRef.current.send(JSON.stringify({ type: "cursor", step: ref.startStep, pitch: ref.pitch }));
+        wsRef.current.send(JSON.stringify({ type: "cursor", trackIndex, step: ref.startStep, pitch: ref.pitch }));
       }
     }
   };
@@ -220,11 +222,15 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
       const trackCount = TRACKS_ADVANCED?.length ?? 15;
       const myTrackId = TRACK_IDS[initialTrackIdx] ?? TRACK_IDS[0];
+      const isCreator = userId === roomCreatorId;
 
-      // Lock other tracks if not spectator, lock all if spectator
-      const lockedTracks = spectatorMode
+      // Lock other tracks if not spectator, lock all if spectator.
+      // However, if the user is the room creator/moderator, they can edit any track, so lockedTracks is empty.
+      const lockedTracks = (spectatorMode && !isCreator)
         ? TRACK_IDS.slice(0, trackCount)
-        : TRACK_IDS.filter((_, i) => i !== initialTrackIdx && i < trackCount);
+        : (isCreator
+            ? []
+            : TRACK_IDS.filter((_, i) => i !== initialTrackIdx && i < trackCount));
 
       // Destroy old instance if exists
       if (dawRef.current) {
@@ -235,18 +241,18 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         mode: "advanced",
         tracks: TRACKS_ADVANCED,
         lockedTracks,
-        initialActiveTrack: spectatorMode ? TRACK_IDS[0] : myTrackId,
+        initialActiveTrack: (spectatorMode && !isCreator) ? TRACK_IDS[0] : myTrackId,
         initialScrollPitch: 60,
-        onNotesPatch: spectatorMode ? undefined : (trackId, added, removed) => {
-          if (trackId !== myTrackId) return; // 自分のトラック以外(shiftNotes等で発火)は無視
+        onNotesPatch: (spectatorMode && !isCreator) ? undefined : (trackId, added, removed) => {
+          if (!isCreator && trackId !== myTrackId) return; // 自分のトラック以外(shiftNotes等で発火)は無視
           sendPatch(trackId, added, removed);
         },
-        onLyricsChange: spectatorMode ? undefined : (trackId, data) => {
+        onLyricsChange: (spectatorMode && !isCreator) ? undefined : (trackId, data) => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: "lyrics", trackId, data }));
           }
         },
-        onTrackInstrumentChange: (spectatorMode || userIdRef.current !== roomCreatorId) ? undefined : (tIdx, instrumentName) => {
+        onTrackInstrumentChange: !isCreator ? undefined : (tIdx, instrumentName) => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: "track-instrument", trackIndex: tIdx, instrumentName }));
           }
@@ -289,12 +295,12 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
   // Connect to WebSocket Relay Server
   useEffect(() => {
-    if (!userIdRef.current) return;
+    if (!userId) return;
 
     setRelayStatus("connecting");
     setRelayStatusMsg("リレー接続中…");
 
-    const wsUrl = `${getWsUrl()}?room=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userIdRef.current)}&username=${encodeURIComponent(username)}&secretWord=${encodeURIComponent(secretWord)}`;
+    const wsUrl = `${getWsUrl()}?room=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userId)}&username=${encodeURIComponent(username)}&secretWord=${encodeURIComponent(secretWord)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -329,7 +335,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           // Populate own user card
           setPlayers(prev => {
             const updated = new Map(prev);
-            updated.set(userIdRef.current, { username, trackIndex: trackIdx, online: true });
+            updated.set(userId, { username, trackIndex: trackIdx, online: true });
             return updated;
           });
 
@@ -555,16 +561,23 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
     }
   }, [chatMessages, isChatCollapsed, chatPage, totalChatPages]);
 
-  // Clear my own track entirely after modal confirmation
+  const openClearConfirm = () => {
+    setTrackIndexToClear(myTrackIndex >= 0 ? myTrackIndex : 0);
+    setIsClearConfirmOpen(true);
+  };
+
+  // Clear track entirely after modal confirmation
   const handleClearTrack = () => {
     setIsClearConfirmOpen(false);
-    if (isSpectator || myTrackIndex < 0) return;
+    const isCreator = userId === creatorId;
+    const targetIdx = isCreator ? trackIndexToClear : myTrackIndex;
+    if (targetIdx < 0) return;
 
     // Send clear-track request to server
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ 
         type: "clear-track", 
-        trackIndex: myTrackIndex 
+        trackIndex: targetIdx 
       }));
     }
   };
@@ -611,9 +624,9 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          {!isSpectator && myTrackIndex >= 0 && (
+          {(!isSpectator || userId === creatorId) && (
             <button 
-              onClick={() => setIsClearConfirmOpen(true)} 
+              onClick={openClearConfirm} 
               className="pixel-btn pixel-btn-red text-xs"
             >
               🗑️ トラック全消去
@@ -666,7 +679,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[180px] md:max-h-[350px]">
             {Array.from(players.entries()).map(([uid, p]) => {
-              const isMe = uid === userIdRef.current;
+              const isMe = uid === userId;
               const isOnline = p.online;
               const trackColor = TRACK_COLORS[p.trackIndex] || "var(--c-muted)";
               const playerEmoji = TRACK_EMOJIS[p.trackIndex] || "👤";
@@ -697,7 +710,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                   {/* Moderation & Mute controls */}
                   <div className="flex justify-between items-center mt-1.5 border-t border-[#5f574f]/30 pt-1.5">
                     {/* Admin Kick Button */}
-                    {userIdRef.current === creatorId && !isMe && isOnline ? (
+                    {userId === creatorId && !isMe && isOnline ? (
                       <button 
                         onClick={() => handleKickUser(uid)}
                         className="text-[9px] px-1.5 py-0.5 border border-[#ff004d] bg-[#ff004d]/20 text-[#ff004d] hover:bg-[#ff004d] hover:text-white transition-colors"
@@ -947,9 +960,28 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             ⚠️ 警告: この操作は取り消せません！
           </div>
 
-          <div className="text-2xs text-[#83769c] leading-relaxed select-none">
-            あなたの担当トラック（<span className="font-mono text-white">トラック {myTrackIndex + 1}</span>）に打ち込まれた音符をすべて消去します。よろしいですか？
-          </div>
+          {userId === creatorId ? (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-white font-bold select-none">
+                消去するトラックを選択してください:
+              </label>
+              <select
+                value={trackIndexToClear}
+                onChange={(e) => setTrackIndexToClear(parseInt(e.target.value))}
+                className="w-full bg-black border-4 border-[#3c344c] text-white p-2 text-xs font-mono outline-none"
+              >
+                {TRACK_NAMES.map((name, idx) => (
+                  <option key={idx} value={idx}>
+                    {TRACK_EMOJIS[idx] || '🎵'} {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="text-2xs text-[#83769c] leading-relaxed select-none">
+              あなたの担当トラック（<span className="font-mono text-white">トラック {myTrackIndex + 1}</span>）に打ち込まれた音符をすべて消去します。よろしいですか？
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 mt-2">
             <button
