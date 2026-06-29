@@ -1,8 +1,29 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { DawInstance, NoteData, NoteRemove } from "@onjmin/dtm";
 import PixelModal from "./PixelModal";
+
+const EMOTE_DEFS = [
+  { id: '👏', label: '拍手' },
+  { id: '🫰', label: '指パッチン' },
+  { id: '🐚', label: '法螺貝' },
+  { id: '🪘', label: '拍子木' },
+  { id: '🥁', label: '和太鼓' },
+  { id: '🎵', label: '小鼓' },
+  { id: '💪', label: 'オウ！' },
+];
+
+const EMOTE_SOUNDS: Record<string, string> = {
+  '👏': encodeURI('/sounds/Applause01-7(Random-Short-Slow).mp3'),
+  '🫰': encodeURI('/sounds/Finger_Snap-Foley06-1(Dry).mp3'),
+  '🐚': encodeURI('/sounds/Horagai01-5.mp3'),
+  '🪘': encodeURI('/sounds/Hyoshigi03-1.mp3'),
+  '🥁': encodeURI('/sounds/和太鼓でドン.mp3'),
+  '🎵': encodeURI('/sounds/小鼓（こつづみ）.mp3'),
+  '💪': encodeURI('/sounds/男衆「オウ！」.mp3'),
+};
 
 // Track emojis (Twelve zodiacs + Cat, Fox, Raccoon)
 const TRACK_EMOJIS = ['🐀','🐄','🐅','🐇','🐉','🐍','🐎','🐑','🐒','🐓','🐕','🐗','🐈','🦊','🦝'];
@@ -90,6 +111,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const [chatPage, setChatPage] = useState(1);
   const chatMessagesCountRef = useRef(chatMessages.length);
   const [unreadCount, setUnreadCount] = useState(0);
+  const lastReadTsRef = useRef<number>(0);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [trackIndexToClear, setTrackIndexToClear] = useState<number>(-1);
 
@@ -98,27 +120,18 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([]);
   const emoteIdRef = useRef(0);
 
-  const EMOTE_DEFS = [
-    { id: '👏', label: '拍手' },
-    { id: '🫰', label: '指パッチン' },
-    { id: '🐚', label: '法螺貝' },
-    { id: '🪘', label: '拍子木' },
-    { id: '🥁', label: '和太鼓' },
-    { id: '🎵', label: '小鼓' },
-    { id: '💪', label: 'オウ！' },
-  ];
-
-  const EMOTE_SOUNDS: Record<string, string> = {
-    '👏': '/sounds/Applause01-7(Random-Short-Slow).mp3',
-    '🫰': '/sounds/Finger_Snap-Foley06-1(Dry).mp3',
-    '🐚': '/sounds/Horagai01-5.mp3',
-    '🪘': '/sounds/Hyoshigi03-1.mp3',
-    '🥁': '/sounds/和太鼓でドン.mp3',
-    '🎵': '/sounds/小鼓（こつづみ）.mp3',
-    '💪': '/sounds/男衆「オウ！」.mp3',
-  };
-
   const emoteAudioRef = useRef<Record<string, HTMLAudioElement>>({});
+  const audioUnlockedRef = useRef(false);
+
+  const unlockAudio = () => {
+    if (audioUnlockedRef.current) return;
+    audioUnlockedRef.current = true;
+    for (const audio of Object.values(emoteAudioRef.current)) {
+      const vol = audio.volume;
+      audio.volume = 0;
+      audio.play().then(() => { audio.pause(); audio.currentTime = 0; audio.volume = vol; }).catch(() => {});
+    }
+  };
 
   useEffect(() => {
     const loaded: Record<string, HTMLAudioElement> = {};
@@ -141,13 +154,16 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   };
 
   const spawnFloatingEmote = (emoji: string) => {
-    const id = ++emoteIdRef.current;
-    const x = 10 + Math.random() * 80; // 10%〜90%
+    const id = ++emoteIdRef.current * 1000 + Date.now() % 1000; // 常に一意
+    const x = 10 + Math.random() * 80;
     setFloatingEmotes(prev => [...prev, { id, emoji, x }]);
-    setTimeout(() => setFloatingEmotes(prev => prev.filter(e => e.id !== id)), 2100);
+    setTimeout(() => setFloatingEmotes(prev => prev.filter(e => e.id !== id)), 2200);
   };
 
   const sendEmote = (emoteId: string) => {
+    unlockAudio();
+    playEmoteSound(emoteId); // ジェスチャー内で即時再生
+    spawnFloatingEmote(emoteId);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'emote', emoteId }));
     }
@@ -655,8 +671,10 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         }
 
         case "emote": {
-          playEmoteSound(msg.emoteId);
-          spawnFloatingEmote(msg.emoteId);
+          if (msg.userId !== userId) {
+            playEmoteSound(msg.emoteId);
+            spawnFloatingEmote(msg.emoteId);
+          }
           break;
         }
 
@@ -677,6 +695,13 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         case "chat-history": {
           if (Array.isArray(msg.history)) {
             setChatMessages(msg.history);
+            const storedTs = parseInt(localStorage.getItem(`dtm-chat-lastread-${roomId}`) || "0", 10);
+            lastReadTsRef.current = storedTs;
+            const unread = (msg.history as ChatMessage[]).filter((m: ChatMessage) => m.timestamp > storedTs).length;
+            if (unread > 0) {
+              setUnreadCount(unread);
+              setHasUnread(true);
+            }
           }
           break;
         }
@@ -744,6 +769,17 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
     }
   };
 
+  const markChatRead = (messages: ChatMessage[]) => {
+    if (messages.length === 0) return;
+    const latest = messages[messages.length - 1].timestamp;
+    if (latest > lastReadTsRef.current) {
+      lastReadTsRef.current = latest;
+      localStorage.setItem(`dtm-chat-lastread-${roomId}`, String(latest));
+    }
+    setUnreadCount(0);
+    setHasUnread(false);
+  };
+
   // Chat Pagination & Auto-follow logic
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const CHAT_ITEMS_PER_PAGE = 10;
@@ -761,13 +797,15 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
     // Auto-advance to the latest page and clear unread if already looking at the latest page
     if (!isChatCollapsed && isViewingLatest) {
       setChatPage(newTotalPages);
-      setUnreadCount(0);
-      setHasUnread(false);
+      markChatRead(chatMessages);
     } else {
       if (chatMessages.length > prevCount) {
-        const added = chatMessages.length - prevCount;
-        setUnreadCount(prev => prev + added);
-        setHasUnread(true);
+        const newMsgs = chatMessages.slice(prevCount);
+        const unreadNew = newMsgs.filter(m => m.timestamp > lastReadTsRef.current).length;
+        if (unreadNew > 0) {
+          setUnreadCount(prev => prev + unreadNew);
+          setHasUnread(true);
+        }
       }
     }
   }, [chatMessages]);
@@ -775,8 +813,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   // Clear unread count when switching to the latest page manually
   useEffect(() => {
     if (!isChatCollapsed && chatPage === totalChatPages) {
-      setUnreadCount(0);
-      setHasUnread(false);
+      markChatRead(chatMessages);
     }
   }, [chatPage, totalChatPages, isChatCollapsed]);
 
@@ -982,10 +1019,9 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
                 const nextCollapse = !isChatCollapsed;
                 setIsChatCollapsed(nextCollapse);
                 if (!nextCollapse) {
-                  // Opening the chat: jump to latest page and clear unread
+                  // Opening the chat: jump to latest page and mark as read
                   setChatPage(totalChatPages);
-                  setUnreadCount(0);
-                  setHasUnread(false);
+                  markChatRead(chatMessages);
                 }
               }}
               className="bg-black text-[#ff77a8] px-3 py-2 cursor-pointer flex items-center justify-between font-bold text-xs select-none hover:text-[#ffec27] transition-colors"
@@ -1103,16 +1139,19 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             )}
           </div>
 
-          {/* Floating emote overlay */}
-          {floatingEmotes.map(e => (
-            <span
-              key={e.id}
-              className="emote-float"
-              style={{ left: `${e.x}%` }}
-            >
-              {e.emoji}
-            </span>
-          ))}
+          {/* Floating emote overlay — portal to escape stacking context */}
+          {typeof document !== "undefined" && createPortal(
+            floatingEmotes.map(e => (
+              <span
+                key={e.id}
+                className="emote-float"
+                style={{ left: `${e.x}%` }}
+              >
+                {e.emoji}
+              </span>
+            )),
+            document.body
+          )}
 
           {/* Off-screen edit indicators */}
           {arrowLeftText && (

@@ -3,6 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PixelModal from "./components/PixelModal";
+import FeedbackModal from "./components/FeedbackModal";
 import DawEditor from "./components/DawEditor";
 
 interface RoomItem {
@@ -44,6 +45,9 @@ function AppContent() {
   const [joinPassword, setJoinPassword] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState(0);
+
+  // Feedback States
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   // Pagination States
   const [publicPage, setPublicPage] = useState(1);
@@ -545,14 +549,26 @@ function AppContent() {
         </section>
 
         {/* Footer Credit */}
-        <footer className="text-center text-[11px] text-[#5f574f] tracking-widest mt-4">
+        <footer className="text-center text-[11px] text-[#5f574f] tracking-widest mt-4 flex flex-wrap items-center justify-center gap-2">
           <span>▒ 音楽エンジン: @onjmin/dtm</span>
-          <button 
+          <button
             onClick={() => setRefreshTrigger(p => p + 1)}
-            className="ml-4 pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
+            className="pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
           >
             ↻ リロード
           </button>
+          <button
+            onClick={() => setIsFeedbackOpen(true)}
+            className="pixel-btn pixel-btn-yellow text-[9px] py-0.5 px-2"
+          >
+            📬 目安箱
+          </button>
+          <a
+            href="/feedback"
+            className="pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"
+          >
+            📋 投稿一覧
+          </a>
         </footer>
 
       </div>
@@ -629,6 +645,14 @@ function AppContent() {
           </div>
         </form>
       </PixelModal>
+
+      {/* FEEDBACK MODAL */}
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        userId={userId}
+        username={username}
+      />
 
       {/* JOIN PASSWORD PROMPT MODAL */}
       <PixelModal
