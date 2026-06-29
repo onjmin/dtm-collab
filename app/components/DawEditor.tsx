@@ -107,6 +107,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const pendingAllTracks = useRef<{ trackIndex: number; notes: NoteData[] }[]>([]);
   const pendingInstruments = useRef<Map<number, string>>(new Map());
   const pendingLyrics = useRef<Map<string, any>>(new Map());
+  const pendingBpm = useRef<number>(120);
 
   // handle user kick event
   const handleKickUser = (targetUserId: string) => {
@@ -285,6 +286,26 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         daw.applyLyrics(trackId, lyricsData);
       }
       pendingLyrics.current.clear();
+
+      if (pendingBpm.current) {
+        daw.setBpm(pendingBpm.current);
+      }
+
+      // Listen to BPM changes on the input element
+      const bpmInput = dawContainerRef.current?.querySelector('[data-dtm="bpm"]');
+      if (bpmInput) {
+        bpmInput.addEventListener("input", () => {
+          const newBpm = Number.parseInt((bpmInput as HTMLInputElement).value, 10);
+          if (newBpm && !isNaN(newBpm)) {
+            if (userId === roomCreatorId) {
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ type: "bpm", bpm: newBpm }));
+              }
+            }
+          }
+        });
+      }
+
       setIsDawReady(true);
 
     } catch (err: any) {
@@ -331,6 +352,9 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
 
           if (msg.yourNotes?.length > 0) {
             pendingOwnNotes.current = msg.yourNotes;
+          }
+          if (msg.bpm) {
+            pendingBpm.current = msg.bpm;
           }
 
           // Populate own user card
@@ -431,6 +455,15 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             } else {
               dawRef.current.applyTrackInstrument(msg.trackIndex, msg.instrumentName ?? "");
             }
+          }
+          break;
+        }
+
+        case "bpm": {
+          if (!dawRef.current) {
+            pendingBpm.current = msg.bpm ?? 120;
+          } else if (msg.bpm != null) {
+            dawRef.current.setBpm(msg.bpm);
           }
           break;
         }

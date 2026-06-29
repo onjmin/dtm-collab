@@ -43,6 +43,12 @@ function AppContent() {
   const [selectedJoinRoom, setSelectedJoinRoom] = useState<RoomItem | null>(null);
   const [joinPassword, setJoinPassword] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState(0);
+
+  // Pagination States
+  const [publicPage, setPublicPage] = useState(1);
+  const [privatePage, setPrivatePage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
 
   // Hydration fix & Init username
   useEffect(() => {
@@ -101,6 +107,35 @@ function AppContent() {
       });
   }, [mounted, roomId, refreshTrigger]);
 
+  // Reset pages when room list changes
+  useEffect(() => {
+    setPublicPage(1);
+    setPrivatePage(1);
+  }, [roomsList]);
+
+  // Handle room creation cooldown check
+  useEffect(() => {
+    if (!isCreateOpen) return;
+
+    const checkCooldown = () => {
+      const lastCreatedStr = localStorage.getItem("dtm-last-room-created");
+      if (lastCreatedStr) {
+        const lastCreated = parseInt(lastCreatedStr, 10);
+        const elapsed = Date.now() - lastCreated;
+        const cooldownMs = 60 * 1000;
+        if (elapsed < cooldownMs) {
+          setCooldownSecondsLeft(Math.ceil((cooldownMs - elapsed) / 1000));
+          return;
+        }
+      }
+      setCooldownSecondsLeft(0);
+    };
+
+    checkCooldown();
+    const interval = setInterval(checkCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [isCreateOpen]);
+
   // Handle username changes
   const handleUsernameChange = (val: string) => {
     const clean = val.slice(0, 16);
@@ -147,6 +182,9 @@ function AppContent() {
       setCreateName("");
       setCreatePrivate(false);
       setCreateSecretWord("");
+
+      // Save last created time to localStorage to start cooldown
+      localStorage.setItem("dtm-last-room-created", Date.now().toString());
 
       // Route to room
       let targetUrl = `?room=${encodeURIComponent(data.id)}`;
@@ -234,6 +272,21 @@ function AppContent() {
       </main>
     );
   }
+
+  // Paginated Room list calculations
+  const publicRooms = roomsList.filter(r => !r.isPrivate);
+  const totalPublicPages = Math.ceil(publicRooms.length / ITEMS_PER_PAGE) || 1;
+  const paginatedPublicRooms = publicRooms.slice(
+    (publicPage - 1) * ITEMS_PER_PAGE,
+    publicPage * ITEMS_PER_PAGE
+  );
+
+  const privateRooms = roomsList.filter(r => r.isPrivate);
+  const totalPrivatePages = Math.ceil(privateRooms.length / ITEMS_PER_PAGE) || 1;
+  const paginatedPrivateRooms = privateRooms.slice(
+    (privatePage - 1) * ITEMS_PER_PAGE,
+    privatePage * ITEMS_PER_PAGE
+  );
 
   // Render Lobby view
   return (
@@ -330,14 +383,14 @@ function AppContent() {
                 </div>
               )}
 
-              {!isLoadingRooms && roomsList.filter(r => !r.isPrivate).length === 0 && (
+              {!isLoadingRooms && publicRooms.length === 0 && (
                 <div className="text-2xs text-[#83769c] text-center py-12 italic">
                   公開中のセッションルームはありません。
                   <br />「新規作成」から新しく部屋を作りましょう！
                 </div>
               )}
 
-              {roomsList.filter(r => !r.isPrivate).map((room) => (
+              {paginatedPublicRooms.map((room) => (
                 <div
                   key={room.id}
                   className="bg-black/30 border-2 border-black p-3 flex items-center justify-between hover:bg-black/50 transition-colors"
@@ -364,6 +417,31 @@ function AppContent() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {publicRooms.length > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between border-t-2 border-[#5f574f]/30 pt-2 text-2xs select-none">
+                <button
+                  type="button"
+                  disabled={publicPage <= 1}
+                  onClick={() => setPublicPage(p => Math.max(1, p - 1))}
+                  className="pixel-btn text-3xs py-0.5 px-2 disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  ◀ 前へ
+                </button>
+                <span className="font-mono text-[#83769c] text-3xs">
+                  PAGE {publicPage} / {totalPublicPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={publicPage >= totalPublicPages}
+                  onClick={() => setPublicPage(p => Math.min(totalPublicPages, p + 1))}
+                  className="pixel-btn text-3xs py-0.5 px-2 disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  次へ ▶
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Private Rooms Column */}
@@ -391,14 +469,14 @@ function AppContent() {
                 </div>
               )}
 
-              {!isLoadingRooms && roomsList.filter(r => r.isPrivate).length === 0 && (
+              {!isLoadingRooms && privateRooms.length === 0 && (
                 <div className="text-2xs text-[#83769c] text-center py-12 italic">
                   プライベートセッションはありません。
                   <br />合言葉を設定してルームを作成できます。
                 </div>
               )}
 
-              {roomsList.filter(r => r.isPrivate).map((room) => (
+              {paginatedPrivateRooms.map((room) => (
                 <div
                   key={room.id}
                   className="bg-black/30 border-2 border-black p-3 flex items-center justify-between hover:bg-black/50 transition-colors"
@@ -425,6 +503,31 @@ function AppContent() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {privateRooms.length > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between border-t-2 border-[#5f574f]/30 pt-2 text-2xs select-none">
+                <button
+                  type="button"
+                  disabled={privatePage <= 1}
+                  onClick={() => setPrivatePage(p => Math.max(1, p - 1))}
+                  className="pixel-btn text-3xs py-0.5 px-2 disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  ◀ 前へ
+                </button>
+                <span className="font-mono text-[#83769c] text-3xs">
+                  PAGE {privatePage} / {totalPrivatePages}
+                </span>
+                <button
+                  type="button"
+                  disabled={privatePage >= totalPrivatePages}
+                  onClick={() => setPrivatePage(p => Math.min(totalPrivatePages, p + 1))}
+                  className="pixel-btn text-3xs py-0.5 px-2 disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  次へ ▶
+                </button>
+              </div>
+            )}
           </div>
 
         </section>
@@ -506,9 +609,10 @@ function AppContent() {
             </button>
             <button
               type="submit"
-              className={`pixel-btn text-xs ${createPrivate ? 'pixel-btn-pink' : 'pixel-btn-cyan'}`}
+              disabled={cooldownSecondsLeft > 0}
+              className={`pixel-btn text-xs disabled:opacity-50 disabled:pointer-events-none ${createPrivate ? 'pixel-btn-pink' : 'pixel-btn-cyan'}`}
             >
-              作成して入室
+              {cooldownSecondsLeft > 0 ? `クールタイム中 (${cooldownSecondsLeft}秒)` : "作成して入室"}
             </button>
           </div>
         </form>

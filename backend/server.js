@@ -56,6 +56,20 @@ const checkRoomCreationRateLimit = (ip) => {
     return true;
 };
 
+// Map to track room creation cooldown: creatorId -> timestamp
+const lastRoomCreatedByCreator = new Map();
+
+const getRoomCreatorCooldownSecondsLeft = (creatorId) => {
+    if (!creatorId) return 0;
+    const now = Date.now();
+    const cooldownMs = 60 * 1000; // 60 seconds cooldown
+    const lastCreated = lastRoomCreatedByCreator.get(creatorId);
+    if (lastCreated && (now - lastCreated < cooldownMs)) {
+        return Math.ceil((cooldownMs - (now - lastCreated)) / 1000);
+    }
+    return 0;
+};
+
 // Patterns for inappropriate words (English & Japanese)
 const NSFW_WORDS = [
     /fuck/gi, /shit/gi, /bitch/gi, /cunt/gi, /nigger/gi, /asshole/gi, /pussy/gi, /dick/gi, /porn/gi, /sex/gi, /hentai/gi,
@@ -138,7 +152,7 @@ app.get('/api/rooms', async (req, res) => {
         let dbRooms = [];
         if (pool && dbReady) {
             const { rows } = await pool.query(
-                `SELECT id, name, is_private, updated_at FROM rooms ORDER BY updated_at DESC LIMIT 50`
+                `SELECT id, name, is_private, updated_at FROM rooms ORDER BY updated_at DESC LIMIT 100`
             );
             dbRooms = rows.map(r => ({
                 id: r.id,
@@ -175,14 +189,22 @@ app.get('/api/rooms', async (req, res) => {
 
 // Create room
 app.post('/api/rooms', async (req, res) => {
+    const { name, isPrivate, secretWord, creatorId } = req.body;
+
+    // Check creator room cooldown first
+    const secondsLeft = getRoomCreatorCooldownSecondsLeft(creatorId);
+    if (secondsLeft > 0) {
+        return res.status(429).json({
+            error: `部屋の作成クールタイム中です。あと ${secondsLeft} 秒お待ちください。`
+        });
+    }
+
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     if (!checkRoomCreationRateLimit(ip)) {
         return res.status(429).json({ 
             error: '部屋の作成制限を超えました。しばらく時間をおいてから再度お試しください (5分間に最大3部屋まで)。' 
         });
     }
-
-    const { name, isPrivate, secretWord, creatorId } = req.body;
     if (!name || typeof name !== 'string' || name.trim() === '') {
         return res.status(400).json({ error: 'Room name is required' });
     }
@@ -219,6 +241,7 @@ app.post('/api/rooms', async (req, res) => {
             isPrivate: isPrivateBool,
             secretWord: cleanSecretWord,
             creatorId: creatorId || null,
+            bpm: 120, // Default BPM
             users: new Map(),
             trackNotes: new Map(),
             trackLyrics: new Map(),
@@ -226,6 +249,10 @@ app.post('/api/rooms', async (req, res) => {
             chatHistory: [],
             kickedUsers: new Map()
         });
+
+        if (creatorId) {
+            lastRoomCreatedByCreator.set(creatorId, Date.now());
+        }
 
         console.log(`[backend] Created room: ${id} ("${cleanName}", private=${isPrivateBool}, creator=${creatorId})`);
         res.json({ id });
@@ -316,6 +343,7 @@ const loadRoomToMemory = async (roomId) => {
 
         const row = rows[0];
         const rawNotes = row.track_notes || {};
+        const bpm = rawNotes.bpm || 120;
 
         const trackNotes = new Map();
         if (rawNotes.trackNotes) {
@@ -343,6 +371,7 @@ const loadRoomToMemory = async (roomId) => {
             isPrivate: row.is_private,
             secretWord: row.secret_word,
             creatorId: row.creator_id,
+            bpm,
             users: new Map(),
             trackNotes,
             trackLyrics,
@@ -368,6 +397,7 @@ const saveRoomToDb = async (roomId) => {
     try {
         // Prepare JSONB structure
         const rawNotes = {
+            bpm: room.bpm || 120,
             trackNotes: {},
             trackLyrics: {},
             trackInstruments: {}
@@ -562,6 +592,7 @@ wss.on('connection', async (ws, request) => {
         yourNotes,
         creatorId: room.creatorId,
         roomName: room.name,
+        bpm: room.bpm || 120,
         nextReset: 0 // We don't force hourly resets, DB is permanent
     }));
 
@@ -812,6 +843,30 @@ wss.on('connection', async (ws, request) => {
                     step: msg.step,
                     pitch: msg.pitch
                 }, userId); // Transient, no DB save needed
+                break;
+            }
+
+            case 'bpm': {
+                const user = room.users.get(userId);
+                if (!user) return;
+
+                // Security restriction: Only the room creator (owner) can sync BPM changes
+                if (room.creatorId && userId !== room.creatorId) {
+                    console.log(`[backend] Blocked unauthorized BPM sync from user ${userId} in room ${roomId}`);
+                    return;
+                }
+
+                if (typeof msg.bpm === 'number' && msg.bpm >= 20 && msg.bpm <= 300) {
+                    room.bpm = msg.bpm;
+
+                    broadcast(room, {
+                        type: 'bpm',
+                        bpm: msg.bpm
+                    }, userId);
+
+                    // Queue save to DB
+                    queueSave(roomId);
+                }
                 break;
             }
 
