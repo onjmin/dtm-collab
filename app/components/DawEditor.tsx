@@ -16,13 +16,13 @@ const EMOTE_DEFS = [
 ];
 
 const EMOTE_SOUNDS: Record<string, string> = {
-  '👏': encodeURI('/sounds/Applause01-7(Random-Short-Slow).mp3'),
-  '🫰': encodeURI('/sounds/Finger_Snap-Foley06-1(Dry).mp3'),
-  '🐚': encodeURI('/sounds/Horagai01-5.mp3'),
-  '🪘': encodeURI('/sounds/Hyoshigi03-1.mp3'),
-  '🥁': encodeURI('/sounds/和太鼓でドン.mp3'),
-  '🎵': encodeURI('/sounds/小鼓（こつづみ）.mp3'),
-  '💪': encodeURI('/sounds/男衆「オウ！」.mp3'),
+  '👏': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741745/Applause01-7_Random-Short-Slow_pp9rqz.mp3',
+  '🫰': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741745/Finger_Snap-Foley06-1_Dry_z5s0dl.mp3',
+  '🐚': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741745/Horagai01-5_gkeovg.mp3',
+  '🪘': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741745/Hyoshigi03-1_qdxhwg.mp3',
+  '🥁': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741745/%E5%92%8C%E5%A4%AA%E9%BC%93%E3%81%A7%E3%83%89%E3%83%B3_htnmuh.mp3',
+  '🎵': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741745/%E5%B0%8F%E9%BC%93_%E3%81%93%E3%81%A4%E3%81%A5%E3%81%BF_aamijj.mp3',
+  '💪': 'https://res.cloudinary.com/dbld5kqtz/video/upload/v1782741746/%E7%94%B7%E8%A1%86_%E3%82%AA%E3%82%A6_hvqnwo.mp3',
 };
 
 // Track emojis (Twelve zodiacs + Cat, Fox, Raccoon)
