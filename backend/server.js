@@ -350,7 +350,12 @@ const loadRoomToMemory = async (roomId) => {
         const trackNotes = new Map();
         if (rawNotes.trackNotes) {
             Object.entries(rawNotes.trackNotes).forEach(([key, val]) => {
-                trackNotes.set(Number(key), val);
+                const numKey = Number(key);
+                if (!isNaN(numKey)) {
+                    trackNotes.set(numKey, val);
+                } else {
+                    trackNotes.set(key, val);
+                }
             });
         }
 
@@ -579,14 +584,7 @@ wss.on('connection', async (ws, request) => {
         }
     }
 
-    // Auto-assign creator if not set (for backwards compatibility/local fallback)
-    if (!room.creatorId) {
-        room.creatorId = userId;
-        if (pool && dbReady) {
-            pool.query(`UPDATE rooms SET creator_id = $1 WHERE id = $2`, [userId, roomId])
-                .catch(err => console.error('[backend] Failed to auto-assign creator:', err));
-        }
-    }
+
 
     // Send joining confirmation
     const yourNotes = trackIndex >= 0 ? (room.trackNotes.get(trackIndex)?.notes ?? []) : [];
