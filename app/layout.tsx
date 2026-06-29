@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
   },
   icons: {
-    icon: "https://avatars.githubusercontent.com/u/88383494",
+    icon: "https://i.imgur.com/Q1er7sR.png",
   },
   other: {
     "google-site-verification": "umOJryZRtZeDsWC10CFmGjDOJy7SjkpL3DWlXblOnyE",

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@onjmin/dtm':
-        specifier: 0.1.42
-        version: 0.1.42
+        specifier: 0.1.43
+        version: 0.1.43
       next:
         specifier: 16.2.9
         version: 16.2.9(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -431,8 +431,8 @@ packages:
   '@onjmin/dtm@0.1.14':
     resolution: {integrity: sha512-4sgVlv2X0uc4kd0qT+CxdZnRkV/RrK8nIqg6yvD/qYobKPj2I1OvGbzlG+73Nheiw64VSekP3MCKptvMq7+VZg==}
 
-  '@onjmin/dtm@0.1.42':
-    resolution: {integrity: sha512-d+yCBIXg6dAeXrNFxhk7VjZ/uDlVStcTHa3w2v0xBx65DDJIa720DUZAZQhKkgQtqnxQOiSMhCSf7RM3qdklFQ==}
+  '@onjmin/dtm@0.1.43':
+    resolution: {integrity: sha512-PLACZW8ZhPI3MSs1Z5XgzQ6zB7qCjfC2F7KrtdbK3EOKG/z6ViZoS01RP/COQB2+sU7XHaeKmA7XHYSwmLBl4w==}
 
   '@onjmin/koe@1.0.3':
     resolution: {integrity: sha512-qxBtIKPcbtWJPo0jhi/pzfneOkE1s+Ok5DvCXpjI/NR8bbXEHM77XCn18buENe5eIZMdfUHEprIDuIp5eARONA==}
@@ -2430,7 +2430,7 @@ snapshots:
       '@onjmin/chord-parser': 1.0.2
       '@onjmin/koe': 1.0.3
 
-  '@onjmin/dtm@0.1.42':
+  '@onjmin/dtm@0.1.43':
     dependencies:
       '@onjmin/chord-parser': 1.0.2
       '@onjmin/dtm': 0.1.14
