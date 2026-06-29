@@ -297,17 +297,18 @@ function AppContent() {
         <header className="pixel-border p-6 md:p-8 text-center flex flex-col items-center justify-center gap-4 pixel-border-cyan">
           <div className="flex flex-col items-center gap-1.5">
             <h1 className="pixel-title text-2xl md:text-4xl font-bold tracking-widest text-[#29adff] select-none uppercase">
-              ♪ DTMコラボ ♪
+              ▶ DTMコラボ
             </h1>
             <p className="text-2xs md:text-xs text-[#ff77a8] tracking-widest uppercase select-none font-mono">
               COLLABORATIVE CHIPTUNE STUDIO
             </p>
           </div>
 
-          {/* 価値提案 (短く・1文) */}
+          {/* 価値提案 + 信頼要素を1文に織り込む (アイコン3枚並びは AI slop なので使わない) */}
           <p className="text-xs md:text-sm text-[#fff1e8] leading-relaxed max-w-xl">
-            ブラウザを開くだけ。離れた仲間と<span className="text-[#ffec27] font-bold">リアルタイムに合奏</span>できる
-            8bitシーケンサー。<span className="text-white font-bold">インストールも会員登録も不要</span>です。
+            ブラウザを開くだけ。URLを送れば離れた仲間が最大15人まで集まって、
+            その場で<span className="text-[#ffec27] font-bold">リアルタイムに合奏</span>できる8bitシーケンサーです。
+            インストールも会員登録もいりません。
           </p>
 
           {/* 主CTA (ページ内で最も目立つ唯一の行動) */}
@@ -320,15 +321,6 @@ function AppContent() {
           >
             ▶ いますぐ部屋を作って合奏をはじめる
           </button>
-
-          {/* 信頼シグナル (CTA近傍に配置) */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-3xs md:text-2xs font-mono text-[#83769c]">
-            <span>⚡ インストール不要</span>
-            <span className="text-[#5f574f]">|</span>
-            <span>🔗 URL共有だけで参加</span>
-            <span className="text-[#5f574f]">|</span>
-            <span>👥 最大15人で同時合奏</span>
-          </div>
 
           {/* ライブ社会的証明 (今まさに使われている、を可視化) */}
           {mounted && !isLoadingRooms && !apiError && roomsList.length > 0 && (
@@ -382,7 +374,7 @@ function AppContent() {
           <div className="pixel-border p-4 flex flex-col gap-4 pixel-border-cyan bg-[#1d2b53]">
             <div className="flex items-center justify-between border-b-2 border-[#5f574f] pb-2">
               <span className="font-bold text-[#29adff] text-sm tracking-wider">
-                🌏 パブリックセッション (誰でも参加可能)
+                ▒ パブリックセッション (誰でも参加可能)
               </span>
               <button
                 onClick={() => {
@@ -468,7 +460,7 @@ function AppContent() {
           <div className="pixel-border p-4 flex flex-col gap-4 pixel-border-pink bg-[#1d2b53]">
             <div className="flex items-center justify-between border-b-2 border-[#5f574f] pb-2">
               <span className="font-bold text-[#ff77a8] text-sm tracking-wider">
-                🔒 プライベートセッション (合言葉が必要)
+                ▒ プライベートセッション (合言葉が必要)
               </span>
               <button
                 onClick={() => {
@@ -503,7 +495,7 @@ function AppContent() {
                 >
                   <div className="flex flex-col gap-1 min-w-0">
                     <span className="font-bold text-white text-xs truncate flex items-center gap-1.5">
-                      🔒 {room.name}
+                      [鍵] {room.name}
                     </span>
                     <span className="text-[10px] text-[#83769c] font-mono">
                       ID: {room.id}
@@ -554,7 +546,7 @@ function AppContent() {
 
         {/* Footer Credit */}
         <footer className="text-center text-[11px] text-[#5f574f] tracking-widest mt-4">
-          <span>♪ 音楽エンジン: @onjmin/dtm</span>
+          <span>▒ 音楽エンジン: @onjmin/dtm</span>
           <button 
             onClick={() => setRefreshTrigger(p => p + 1)}
             className="ml-4 pixel-btn text-[9px] py-0.5 px-2 bg-black border-2 border-white/10"

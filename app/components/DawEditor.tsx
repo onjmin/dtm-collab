@@ -709,7 +709,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 bg-black text-[#83769c] border-4 border-black px-3 py-1.5 text-2xs md:text-xs font-mono">
         <div className="flex items-center gap-2">
           <span className={`inline-block w-2.5 h-2.5 rounded-full ${
-            relayStatus === "connected" ? "bg-[#00e436] shadow-[0_0_6px_#00e436]" : 
+            relayStatus === "connected" ? "bg-[#00e436]" :
             relayStatus === "connecting" ? "bg-[#ffec27] pixel-blink" : "bg-[#ff004d]"
           }`} />
           <span>サーバー接続: {relayStatusMsg}</span>
