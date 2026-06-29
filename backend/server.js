@@ -243,6 +243,7 @@ app.post('/api/rooms', async (req, res) => {
             creatorId: creatorId || null,
             bpm: 120, // Default BPM
             drum: 'none', // Default drum pattern
+            instrument: '', // Default top-level instrument preset (empty = library default)
             users: new Map(),
             trackNotes: new Map(),
             trackLyrics: new Map(),
@@ -346,6 +347,7 @@ const loadRoomToMemory = async (roomId) => {
         const rawNotes = row.track_notes || {};
         const bpm = rawNotes.bpm || 120;
         const drum = rawNotes.drum || 'none';
+        const instrument = rawNotes.instrument || '';
 
         const trackNotes = new Map();
         if (rawNotes.trackNotes) {
@@ -380,6 +382,7 @@ const loadRoomToMemory = async (roomId) => {
             creatorId: row.creator_id,
             bpm,
             drum,
+            instrument,
             users: new Map(),
             trackNotes,
             trackLyrics,
@@ -407,6 +410,7 @@ const saveRoomToDb = async (roomId) => {
         const rawNotes = {
             bpm: room.bpm || 120,
             drum: room.drum || 'none',
+            instrument: room.instrument || '',
             trackNotes: {},
             trackLyrics: {},
             trackInstruments: {}
@@ -596,6 +600,7 @@ wss.on('connection', async (ws, request) => {
         roomName: room.name,
         bpm: room.bpm || 120,
         drum: room.drum || 'none',
+        instrument: room.instrument || '',
         nextReset: 0 // We don't force hourly resets, DB is permanent
     }));
 
@@ -824,6 +829,28 @@ wss.on('connection', async (ws, request) => {
                     // Queue save to DB
                     queueSave(roomId);
                 }
+                break;
+            }
+
+            case 'instrument': {
+                const user = room.users.get(userId);
+                if (!user) return;
+
+                // Security restriction: Only the room creator (owner) can change the instrument preset
+                if (room.creatorId && userId !== room.creatorId) {
+                    console.log(`[backend] Blocked unauthorized instrument preset change from user ${userId} in room ${roomId}`);
+                    return;
+                }
+
+                room.instrument = msg.instrumentName ?? '';
+
+                broadcast(room, {
+                    type: 'instrument',
+                    instrumentName: room.instrument
+                }, userId);
+
+                // Queue save to DB
+                queueSave(roomId);
                 break;
             }
 

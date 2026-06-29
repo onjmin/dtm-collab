@@ -106,6 +106,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
   const pendingOwnNotes = useRef<NoteData[]>([]);
   const pendingAllTracks = useRef<{ trackIndex: number; notes: NoteData[] }[]>([]);
   const pendingInstruments = useRef<Map<number, string>>(new Map());
+  const pendingInstrument = useRef<string>("");
   const pendingLyrics = useRef<Map<string, any>>(new Map());
   const pendingBpm = useRef<number>(120);
   const pendingDrum = useRef<string>("none");
@@ -260,6 +261,11 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             wsRef.current.send(JSON.stringify({ type: "track-instrument", trackIndex: tIdx, instrumentName }));
           }
         },
+        onInstrumentChange: !isCreator ? undefined : (instrumentName) => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "instrument", instrumentName }));
+          }
+        },
         onDrumChange: (spectatorMode && !isCreator) ? undefined : (drumName) => {
           if (userId === roomCreatorId) {
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -289,6 +295,10 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         daw.applyTrackInstrument(tIndex, instName);
       }
       pendingInstruments.current.clear();
+
+      if (pendingInstrument.current) {
+        daw.setInstrument(pendingInstrument.current);
+      }
 
       for (const [trackId, lyricsData] of pendingLyrics.current.entries()) {
         daw.applyLyrics(trackId, lyricsData);
@@ -370,6 +380,9 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
           }
           if (msg.drum) {
             pendingDrum.current = msg.drum;
+          }
+          if (msg.instrument) {
+            pendingInstrument.current = msg.instrument;
           }
 
           // Populate own user card
@@ -470,6 +483,15 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
             } else {
               dawRef.current.applyTrackInstrument(msg.trackIndex, msg.instrumentName ?? "");
             }
+          }
+          break;
+        }
+
+        case "instrument": {
+          if (!dawRef.current) {
+            pendingInstrument.current = msg.instrumentName ?? "";
+          } else {
+            dawRef.current.setInstrument(msg.instrumentName ?? "");
           }
           break;
         }
