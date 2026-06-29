@@ -238,6 +238,7 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         initialActiveTrack: spectatorMode ? TRACK_IDS[0] : myTrackId,
         initialScrollPitch: 60,
         onNotesPatch: spectatorMode ? undefined : (trackId, added, removed) => {
+          if (trackId !== myTrackId) return; // 自分のトラック以外(shiftNotes等で発火)は無視
           sendPatch(trackId, added, removed);
         },
         onLyricsChange: spectatorMode ? undefined : (trackId, data) => {

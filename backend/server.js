@@ -436,14 +436,17 @@ const applyPatchToNotes = (notes, added, removed) => {
     const removeSet = new Set(removed.map(keyOf));
     const result = notes.filter((n) => !removeSet.has(keyOf(n)));
     for (const n of added) {
-        if (!result.some((e) => keyOf(e) === keyOf(n))) {
-            result.push({
-                startStep: n.startStep,
-                pitch: n.pitch,
-                durationSteps: n.durationSteps,
-                velocity: n.velocity
-            });
-        }
+        const note = {
+            startStep: n.startStep,
+            pitch: n.pitch,
+            durationSteps: n.durationSteps,
+            velocity: n.velocity
+        };
+        // upsert: 同一キー(startStep,pitch)があれば上書きして durationSteps/velocity の
+        // 変更（リサイズ等）を反映する。なければ追加。
+        const idx = result.findIndex((e) => keyOf(e) === keyOf(n));
+        if (idx === -1) result.push(note);
+        else result[idx] = note;
     }
     return result;
 };
@@ -694,14 +697,14 @@ wss.on('connection', async (ws, request) => {
                     }));
                     entry.notes = [];
 
-                    // Broadcast the clear as a patch with all notes removed
+                    // Broadcast the clear as a patch with all notes removed (include sender so their DAW clears too)
                     broadcast(room, {
                         type: 'patch',
                         userId,
                         trackIndex: user.trackIndex,
                         added: [],
                         removed
-                    }, userId);
+                    });
 
                     // Queue save to DB
                     queueSave(roomId);
