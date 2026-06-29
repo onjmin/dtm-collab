@@ -342,6 +342,7 @@ const loadRoomToMemory = async (roomId) => {
 
         if (rows.length === 0) return null;
 
+        const row = rows[0];
         const rawNotes = row.track_notes || {};
         const bpm = rawNotes.bpm || 120;
         const drum = rawNotes.drum || 'none';
