@@ -300,6 +300,26 @@ export default function DawEditor({ roomId, username, userId, secretWord = "", o
         daw.setInstrument(pendingInstrument.current);
       }
 
+      // Intercept the preset select UI directly, because onInstrumentChange only fires on MML load,
+      // not on user interaction with the preset select element.
+      if (isCreator && dawContainerRef.current) {
+        const controlbars = dawContainerRef.current.querySelectorAll(".dtm-controlbar");
+        for (const bar of controlbars) {
+          const label = bar.querySelector(".dtm-controlbar-label");
+          if (label?.textContent === "楽器プリセット") {
+            const sel = bar.querySelector("select") as HTMLSelectElement | null;
+            if (sel) {
+              sel.addEventListener("change", () => {
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify({ type: "instrument", instrumentName: sel.value }));
+                }
+              });
+            }
+            break;
+          }
+        }
+      }
+
       for (const [trackId, lyricsData] of pendingLyrics.current.entries()) {
         daw.applyLyrics(trackId, lyricsData);
       }
